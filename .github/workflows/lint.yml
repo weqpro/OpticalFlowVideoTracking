@@ -34,13 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cache .deb files — reduces apt install from ~90 s to ~5 s on hit.
-      # awalsh128/cache-apt-pkgs-action caches per package + version fingerprint.
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: clang-format-${{ env.CLANG_VER }}
-          version: 1.0
+      - name: Install clang-format
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q clang-format-${{ env.CLANG_VER }}
 
       # Check formatting.
       # For each C++ file: format in-memory, diff vs. original.
@@ -120,18 +117,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >-
-            clang-${{ env.CLANG_VER }}
-            clang-tidy-${{ env.CLANG_VER }}
-            libeigen3-dev
-            libavformat-dev
-            libavcodec-dev
-            libavutil-dev
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q \
+            clang-${{ env.CLANG_VER }} \
+            clang-tidy-${{ env.CLANG_VER }} \
+            libeigen3-dev \
+            libavformat-dev \
+            libavcodec-dev \
+            libavutil-dev \
             libswscale-dev
-          version: 1.0
 
       # cmake configure only — produces build/compile_commands.json.
       # ENABLE_CLANG_TIDY=OFF so we drive clang-tidy directly (cleaner output).
