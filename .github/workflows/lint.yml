@@ -28,6 +28,7 @@ env:
 #   3. Run clang-tidy directly on all .cpp files with --warnings-as-errors='*'.
 #   4. Write a structured markdown summary to $GITHUB_STEP_SUMMARY.
 # ─────────────────────────────────────────────────────────────────────────────
+jobs:
   clang-tidy:
     name: clang-tidy
     runs-on: ubuntu-24.04
