@@ -1,0 +1,52 @@
+---
+# .clang-format — code formatting configuration
+#
+# BasedOnStyle: LLVM — chosen because:
+#   • The project uses Clang tooling (clang-tidy), same ecosystem
+#   • Existing code already matches LLVM layout exactly
+#   • Stable, well-documented: https://llvm.org/docs/CodingStandards.html
+#
+# clang-format docs: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle: LLVM
+
+# ── Indentation ────────────────────────────────────────────────────────────────
+IndentWidth: 4          # LLVM default is 2; override to match existing code
+TabWidth: 4
+UseTab: Never
+# access specifiers sit between class-brace and body declarations
+AccessModifierOffset: -4
+NamespaceIndentation: None
+
+# ── Line length ────────────────────────────────────────────────────────────────
+ColumnLimit: 100        # 100 chars is practical for template-heavy code
+
+# ── Braces ─────────────────────────────────────────────────────────────────────
+BreakBeforeBraces: Attach   # { on same line — matches existing code
+
+# ── Includes ───────────────────────────────────────────────────────────────────
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"video/'        # 1 — project headers
+    Priority: 1
+  - Regex: '^<'              # 2 — system / third-party
+    Priority: 2
+
+# ── Alignment ──────────────────────────────────────────────────────────────────
+AlignAfterOpenBracket: Align
+AlignTrailingComments:
+  Kind: Always
+AlignOperands: Align
+
+# ── Pointers and references ────────────────────────────────────────────────────
+# West-const: `const AVCodec*` — already used throughout the codebase
+PointerAlignment: Right
+
+# ── Spaces ─────────────────────────────────────────────────────────────────────
+SpaceBeforeParens: ControlStatements
+SpacesInAngles: Never
+SpacesInContainerLiterals: false
+
+# ── Misc ───────────────────────────────────────────────────────────────────────
+Cpp11BracedListStyle: true
+Standard: c++17

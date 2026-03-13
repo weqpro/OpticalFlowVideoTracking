@@ -1,4 +1,2 @@
-mkdir -p build && cd build || exit 1
-cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build .
-cd ..
+mkdir -p build
+cmake -B build -DENABLE_CLANG_TIDY=ON && cmake --build build

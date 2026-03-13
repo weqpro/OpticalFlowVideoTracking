@@ -1,0 +1,124 @@
+---
+# .clang-tidy — clang-tidy configuration
+#
+# Reference: LLVM project .clang-tidy
+#   https://github.com/llvm/llvm-project/blob/main/.clang-tidy
+# Docs: https://clang.llvm.org/extra/clang-tidy/
+# Check list: https://clang.llvm.org/extra/clang-tidy/checks/list.html
+#
+# ── HOW TO CUSTOMISE NAMING ──────────────────────────────────────────────────
+# Edit the CheckOptions section below.
+# Each identifier kind supports:
+#   *Case    → lower_case | UPPER_CASE | camelBack | CamelCase | ...
+#   *Prefix  → fixed string prepended (e.g. "m_" for members)
+#   *Suffix  → fixed string appended  (e.g. "_"  for private members)
+#
+# Full list of identifier kinds:
+#   https://clang.llvm.org/extra/clang-tidy/checks/readability/identifier-naming.html
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Checks enabled (start from nothing; explicit opt-in like LLVM's approach):
+#   clang-diagnostic-*  — compiler diagnostics forwarded by clang-tidy
+#   clang-analyzer-*    — Clang Static Analyzer: null deref, leaks, UB
+#   cppcoreguidelines-* — C++ Core Guidelines (Stroustrup & Sutter)
+#   bugprone-*          — common bug patterns
+#   modernize-*         — C++11/14/17 modernisation
+#   performance-*       — performance anti-patterns
+#   readability-*       — readability + naming (configured in CheckOptions)
+#
+# Disabled checks (rationale below):
+#   pro-bounds-array-to-pointer-decay  → FFmpeg frame->data[4] / linesize[4]
+#   pro-bounds-constant-array-index    → FFmpeg dst_data[1], dst_stride[1]
+#   avoid-magic-numbers                → 255.0, -1 are self-documenting here
+#   pro-type-vararg                    → C API compatibility
+#   use-trailing-return-type           → controversial; disabled by LLVM itself
+#   easily-swappable-parameters        → high false-positive rate; not in LLVM
+Checks: >
+  -*,
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-type-vararg,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  readability-*,
+  -readability-magic-numbers,
+
+WarningsAsErrors: ''
+
+# Restrict header diagnostics to project headers only.
+# (cmake/ClangTidy.cmake also passes --header-filter at build time;
+#  this value is used when running clang-tidy directly from the CLI.)
+HeaderFilterRegex: 'include/.*'
+
+CheckOptions:
+  # ── Types ──────────────────────────────────────────────────────────────────
+  - { key: readability-identifier-naming.ClassCase,                       value: CamelCase }
+  - { key: readability-identifier-naming.StructCase,                      value: CamelCase }
+  - { key: readability-identifier-naming.EnumCase,                        value: CamelCase }
+  - { key: readability-identifier-naming.EnumConstantCase,                value: CamelCase }
+  - { key: readability-identifier-naming.TypeAliasCase,                   value: CamelCase }
+  - { key: readability-identifier-naming.TypedefCase,                     value: CamelCase }
+  - { key: readability-identifier-naming.UnionCase,                       value: CamelCase }
+  - { key: readability-identifier-naming.TypeTemplateParameterCase,       value: CamelCase }
+  - { key: readability-identifier-naming.TemplateTemplateParameterCase,   value: CamelCase }
+  - { key: readability-identifier-naming.ValueTemplateParameterCase,      value: CamelCase }
+
+  # ── Namespaces ─────────────────────────────────────────────────────────────
+  - { key: readability-identifier-naming.NamespaceCase,                   value: lower_case }
+  - { key: readability-identifier-naming.InlineNamespaceCase,             value: lower_case }
+
+  # ── Functions and methods ──────────────────────────────────────────────────
+  # camelBack: used by LLVM in their own .clang-tidy (FunctionCase / MethodCase).
+  # Matches existing getFrame() and standard getter/setter patterns.
+  - { key: readability-identifier-naming.FunctionCase,                    value: camelBack }
+  - { key: readability-identifier-naming.MethodCase,                      value: camelBack }
+  - { key: readability-identifier-naming.VirtualMethodCase,               value: camelBack }
+  - { key: readability-identifier-naming.ConstexprFunctionCase,           value: camelBack }
+  - { key: readability-identifier-naming.ConstexprMethodCase,             value: camelBack }
+  - { key: readability-identifier-naming.IgnoreMainLikeFunctions,         value: '1' }
+
+  # ── Variables and parameters ───────────────────────────────────────────────
+  - { key: readability-identifier-naming.VariableCase,                    value: lower_case }
+  - { key: readability-identifier-naming.LocalVariableCase,               value: lower_case }
+  - { key: readability-identifier-naming.ParameterCase,                   value: lower_case }
+  - { key: readability-identifier-naming.GlobalVariableCase,              value: lower_case }
+  - { key: readability-identifier-naming.StaticVariableCase,              value: lower_case }
+
+  # ── Members ────────────────────────────────────────────────────────────────
+  # Trailing '_' for private/protected: Google C++ convention, already used
+  # consistently in this codebase (format_ctx_, flushing_, etc.).
+  - { key: readability-identifier-naming.MemberCase,                      value: lower_case }
+  - { key: readability-identifier-naming.PublicMemberCase,                value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberCase,               value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberSuffix,             value: '_' }
+  - { key: readability-identifier-naming.ProtectedMemberCase,             value: lower_case }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix,           value: '_' }
+
+  # ── Constants ──────────────────────────────────────────────────────────────
+  - { key: readability-identifier-naming.ConstantCase,                    value: UPPER_CASE }
+  - { key: readability-identifier-naming.GlobalConstantCase,              value: UPPER_CASE }
+  - { key: readability-identifier-naming.StaticConstantCase,              value: UPPER_CASE }
+  - { key: readability-identifier-naming.ConstexprVariableCase,           value: UPPER_CASE }
+
+  # ── Macros ─────────────────────────────────────────────────────────────────
+  - { key: readability-identifier-naming.MacroDefinitionCase,             value: UPPER_CASE }
+
+  # ── readability-function-size ──────────────────────────────────────────────
+  - { key: readability-function-size.LineThreshold,                       value: '80' }
+  - { key: readability-function-size.StatementThreshold,                  value: '40' }
+  - { key: readability-function-size.ParameterThreshold,                  value: '8' }
+  - { key: readability-braces-around-statements.ShortStatementLines,      value: '0' }
+
+  # ── modernize options ──────────────────────────────────────────────────────
+  - { key: modernize-loop-convert.MinConfidence,                          value: reasonable }
+  - { key: modernize-loop-convert.NamingStyle,                            value: lower_case }
+
+  # ── misc ───────────────────────────────────────────────────────────────────
+  - { key: readability-redundant-member-init.IgnoreBaseInCopyConstructors, value: '1' }

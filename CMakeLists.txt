@@ -3,6 +3,10 @@ project(OpticalFlowVideoTracking LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Always generate compile_commands.json (needed by clang-tidy and clangd).
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+include(cmake/ClangTidy.cmake)
 
 # --- Eigen ---
 find_package(Eigen3 REQUIRED NO_MODULE)
@@ -49,3 +53,5 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     ${AVUTIL_CFLAGS_OTHER}
     ${SWSCALE_CFLAGS_OTHER}
 )
+
+target_enable_clang_tidy(${PROJECT_NAME})

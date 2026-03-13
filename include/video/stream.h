@@ -15,11 +15,11 @@ extern "C" {
 
 namespace video {
 
-struct FormatCtxDeleter { void operator()(AVFormatContext*) const noexcept; };
-struct CodecCtxDeleter  { void operator()(AVCodecContext*)  const noexcept; };
-struct FrameDeleter     { void operator()(AVFrame*)         const noexcept; };
-struct PacketDeleter    { void operator()(AVPacket*)        const noexcept; };
-struct SwsCtxDeleter    { void operator()(SwsContext*)      const noexcept; };
+struct FormatCtxDeleter { void operator()(AVFormatContext* ptr) const noexcept; };
+struct CodecCtxDeleter  { void operator()(AVCodecContext* ptr)  const noexcept; };
+struct FrameDeleter     { void operator()(AVFrame* ptr)         const noexcept; };
+struct PacketDeleter    { void operator()(AVPacket* ptr)        const noexcept; };
+struct SwsCtxDeleter    { void operator()(SwsContext* ptr)      const noexcept; };
 
 class Stream {
 public:
@@ -46,8 +46,8 @@ private:
     int  video_stream_index_{-1};
     bool flushing_{false};
 
-    static void ffmpeg_check(int ret, const char* what);
-    Eigen::MatrixXd frame_to_matrix();
+    static void ffmpegCheck(int ret, const char* what);
+    Eigen::MatrixXd frameToMatrix();
 };
 
 } // namespace video
