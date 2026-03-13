@@ -45,13 +45,13 @@ void Stream::ffmpeg_check(int ret, const char* what) {
 }
 
 /// constructor of videostream
-Stream::Stream(std::string path) { // TODO: use const std::string& path because we using path.c_str()
+Stream::Stream(const std::string& path) {
     AVFormatContext* raw_fmt = nullptr;
     ffmpeg_check(
         avformat_open_input(&raw_fmt, path.c_str(), nullptr, nullptr),
         "avformat_open_input"
     );
-    format_ctx_.reset(raw_fmt); // TODO: check whether raw_fmt is nullptr after it (func can return nullptr)
+    format_ctx_.reset(raw_fmt);
 
     ffmpeg_check(
         avformat_find_stream_info(format_ctx_.get(), nullptr),
@@ -61,8 +61,10 @@ Stream::Stream(std::string path) { // TODO: use const std::string& path because 
     const AVCodec* decoder = nullptr;
     int idx = av_find_best_stream(
         format_ctx_.get(), AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0
-    ); // TODO: check whether codec is not nullptr after it (func can return nullptr)
+    );
     ffmpeg_check(idx, "av_find_best_stream");
+    if (!decoder)
+        throw std::runtime_error("av_find_best_stream: no decoder found for stream");
     video_stream_index_ = idx;
 
     AVCodecContext* raw_codec = avcodec_alloc_context3(decoder);

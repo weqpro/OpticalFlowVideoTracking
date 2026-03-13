@@ -24,7 +24,7 @@ struct SwsCtxDeleter    { void operator()(SwsContext*)      const noexcept; };
 class Stream {
 public:
     Stream() = delete;
-    explicit Stream(std::string path);
+    explicit Stream(const std::string& path);
 
     Stream(const Stream&) = delete;
     Stream& operator=(const Stream&) = delete;
