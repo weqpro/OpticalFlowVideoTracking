@@ -15,8 +15,9 @@ int main() {
     // --- Case 2: good path — iterate all frames ---
     try {
         video::Stream s("/tmp/test.mp4");
-        int count = 0;
-        int rows = 0, cols = 0;
+        int count = 0; // TODO: can be negative? 
+        int rows = 0, cols = 0; // TODO: this also
+        
         while (auto frame = s.getFrame()) {
             if (count == 0) { rows = frame->rows(); cols = frame->cols(); }
             ++count;
