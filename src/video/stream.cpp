@@ -1,34 +1,42 @@
 extern "C" {
-#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
 #include <libavutil/error.h>
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 }
 
-#include "video/stream.h"
-
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "video/stream.h"
+
 namespace video {
 
-void FormatCtxDeleter::operator()(AVFormatContext *ptr) const noexcept {
+void FormatCtxDeleter::operator()(AVFormatContext* ptr) const noexcept {
     avformat_close_input(&ptr);
 }
 
-void CodecCtxDeleter::operator()(AVCodecContext *ptr) const noexcept { avcodec_free_context(&ptr); }
+void CodecCtxDeleter::operator()(AVCodecContext* ptr) const noexcept {
+    avcodec_free_context(&ptr);
+}
 
-void FrameDeleter::operator()(AVFrame *ptr) const noexcept { av_frame_free(&ptr); }
+void FrameDeleter::operator()(AVFrame* ptr) const noexcept {
+    av_frame_free(&ptr);
+}
 
-void PacketDeleter::operator()(AVPacket *ptr) const noexcept { av_packet_free(&ptr); }
+void PacketDeleter::operator()(AVPacket* ptr) const noexcept {
+    av_packet_free(&ptr);
+}
 
-void SwsCtxDeleter::operator()(SwsContext *ptr) const noexcept { sws_freeContext(ptr); }
+void SwsCtxDeleter::operator()(SwsContext* ptr) const noexcept {
+    sws_freeContext(ptr);
+}
 
 /// check for ffmpeg return error
 /// throws std::runtime_error
-void Stream::ffmpegCheck(int ret, const char *what) {
+void Stream::ffmpegCheck(int ret, const char* what) {
     if (ret < 0) {
         std::array<char, AV_ERROR_MAX_STRING_SIZE> buf{};
         av_strerror(ret, buf.data(), buf.size());
@@ -37,44 +45,55 @@ void Stream::ffmpegCheck(int ret, const char *what) {
 }
 
 /// constructor of videostream
-Stream::Stream(const std::string &path) {
-    AVFormatContext *raw_fmt = nullptr;
-    ffmpegCheck(avformat_open_input(&raw_fmt, path.c_str(), nullptr, nullptr),
-                "avformat_open_input");
+Stream::Stream(const std::string& path) {
+    AVFormatContext* raw_fmt = nullptr;
+    ffmpegCheck(
+        avformat_open_input(&raw_fmt, path.c_str(), nullptr, nullptr),
+        "avformat_open_input"
+    );
     format_ctx_.reset(raw_fmt);
 
-    ffmpegCheck(avformat_find_stream_info(format_ctx_.get(), nullptr), "avformat_find_stream_info");
+    ffmpegCheck(
+        avformat_find_stream_info(format_ctx_.get(), nullptr),
+        "avformat_find_stream_info"
+    );
 
-    const AVCodec *decoder = nullptr;
-    int idx = av_find_best_stream(format_ctx_.get(), AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
+    const AVCodec* decoder = nullptr;
+    int idx = av_find_best_stream(
+        format_ctx_.get(), AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0
+    );
     ffmpegCheck(idx, "av_find_best_stream");
     if (decoder == nullptr) {
         throw std::runtime_error("av_find_best_stream: no decoder found for stream");
     }
     video_stream_index_ = idx;
 
-    AVCodecContext *raw_codec = avcodec_alloc_context3(decoder);
+    AVCodecContext* raw_codec = avcodec_alloc_context3(decoder);
     if (raw_codec == nullptr) {
         throw std::runtime_error("avcodec_alloc_context3: out of memory");
     }
     codec_ctx_.reset(raw_codec);
 
     ffmpegCheck(
-        avcodec_parameters_to_context(codec_ctx_.get(),
-                                      format_ctx_->streams[video_stream_index_]
-                                          ->codecpar // NOLINT(*-pro-bounds-pointer-arithmetic)
-                                      ),
-        "avcodec_parameters_to_context");
+        avcodec_parameters_to_context(
+            codec_ctx_.get(),
+            format_ctx_->streams[video_stream_index_]->codecpar // NOLINT(*-pro-bounds-pointer-arithmetic)
+        ),
+        "avcodec_parameters_to_context"
+    );
 
-    ffmpegCheck(avcodec_open2(codec_ctx_.get(), decoder, nullptr), "avcodec_open2");
+    ffmpegCheck(
+        avcodec_open2(codec_ctx_.get(), decoder, nullptr),
+        "avcodec_open2"
+    );
 
-    AVFrame *raw_frame = av_frame_alloc();
+    AVFrame* raw_frame = av_frame_alloc();
     if (raw_frame == nullptr) {
         throw std::runtime_error("av_frame_alloc: out of memory");
     }
     frame_.reset(raw_frame);
 
-    AVPacket *raw_packet = av_packet_alloc();
+    AVPacket* raw_packet = av_packet_alloc();
     if (raw_packet == nullptr) {
         throw std::runtime_error("av_packet_alloc: out of memory");
     }
@@ -83,13 +102,15 @@ Stream::Stream(const std::string &path) {
 
 /// converts current decoded frame to grayscale MatrixXd
 Eigen::MatrixXd Stream::frameToMatrix() {
-    const int WIDTH = codec_ctx_->width;
+    const int WIDTH  = codec_ctx_->width;
     const int HEIGHT = codec_ctx_->height;
 
     if (!sws_ctx_) { // lazy sws init
-        SwsContext *raw_sws =
-            sws_getContext(WIDTH, HEIGHT, static_cast<AVPixelFormat>(frame_->format), WIDTH, HEIGHT,
-                           AV_PIX_FMT_GRAY8, SWS_BILINEAR, nullptr, nullptr, nullptr);
+        SwsContext* raw_sws = sws_getContext(
+            WIDTH, HEIGHT, static_cast<AVPixelFormat>(frame_->format),
+            WIDTH, HEIGHT, AV_PIX_FMT_GRAY8,
+            SWS_BILINEAR, nullptr, nullptr, nullptr
+        );
         if (raw_sws == nullptr) {
             throw std::runtime_error("sws_getContext: failed to create context");
         }
@@ -98,17 +119,23 @@ Eigen::MatrixXd Stream::frameToMatrix() {
 
     // Scale into a flat byte buffer.
     std::vector<uint8_t> gray_buf(static_cast<std::size_t>(WIDTH * HEIGHT));
-    std::array<uint8_t *, 1> dst_data = {gray_buf.data()};
-    std::array<int, 1> dst_stride = {WIDTH};
+    std::array<uint8_t*, 1> dst_data   = { gray_buf.data() };
+    std::array<int, 1> dst_stride = { WIDTH };
 
-    sws_scale(sws_ctx_.get(), frame_->data, frame_->linesize, 0, HEIGHT, dst_data.data(),
-              dst_stride.data());
+    sws_scale(
+        sws_ctx_.get(),
+        frame_->data, frame_->linesize,
+        0, HEIGHT,
+        dst_data.data(), dst_stride.data()
+    );
 
     // Map the row-major byte buffer into Eigen, then cast to double in [0,1].
-    using RowMajorMatrixXu8 =
-        Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+    using RowMajorMatrixXu8 = Eigen::Matrix<
+        uint8_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
-    Eigen::Map<const RowMajorMatrixXu8> pixel_map(gray_buf.data(), HEIGHT, WIDTH);
+    Eigen::Map<const RowMajorMatrixXu8> pixel_map(
+        gray_buf.data(), HEIGHT, WIDTH
+    );
     return pixel_map.cast<double>() / 255.0;
 }
 
@@ -122,8 +149,10 @@ std::optional<Eigen::MatrixXd> Stream::getFrame() {
                 flushing_ = true;
 
                 // null packet to signal end-of-stream to the decoder.
-                ffmpegCheck(avcodec_send_packet(codec_ctx_.get(), nullptr),
-                            "avcodec_send_packet (flush)");
+                ffmpegCheck(
+                    avcodec_send_packet(codec_ctx_.get(), nullptr),
+                    "avcodec_send_packet (flush)"
+                );
             } else {
                 ffmpegCheck(read_ret, "av_read_frame");
 
@@ -132,7 +161,9 @@ std::optional<Eigen::MatrixXd> Stream::getFrame() {
                     continue;
                 }
 
-                int send_ret = avcodec_send_packet(codec_ctx_.get(), packet_.get());
+                int send_ret = avcodec_send_packet(
+                    codec_ctx_.get(), packet_.get()
+                );
                 av_packet_unref(packet_.get());
                 ffmpegCheck(send_ret, "avcodec_send_packet");
             }
@@ -140,7 +171,9 @@ std::optional<Eigen::MatrixXd> Stream::getFrame() {
 
         // Drain all frames the decoder is ready to emit.
         while (true) {
-            int recv_ret = avcodec_receive_frame(codec_ctx_.get(), frame_.get());
+            int recv_ret = avcodec_receive_frame(
+                codec_ctx_.get(), frame_.get()
+            );
 
             if (recv_ret == AVERROR(EAGAIN)) {
                 // Decoder needs more input; break to outer loop.
