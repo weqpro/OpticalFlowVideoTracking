@@ -54,4 +54,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     ${SWSCALE_CFLAGS_OTHER}
 )
 
-target_enable_clang_tidy(${PROJECT_NAME})
+if(ENABLE_CLANG_TIDY)
+  target_enable_clang_tidy(${PROJECT_NAME})
+endif()
