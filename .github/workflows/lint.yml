@@ -1,0 +1,243 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel in-progress runs for the same branch/PR; keep all runs on main.
+# Pattern: opencv, LLVM, pytorch CI workflows.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read          # checkout only
+
+env:
+  CLANG_VER: 18           # single place to bump the clang version
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 1 · clang-format
+#
+# Needs no compilation — completes fast (~20 s) so format errors are surfaced
+# immediately, before the slower clang-tidy job finishes.
+#
+# Strategy: run clang-format in stdout mode, diff vs. original, report each
+# changed file with its diff in the Job Summary tab.
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cache .deb files — reduces apt install from ~90 s to ~5 s on hit.
+      # awalsh128/cache-apt-pkgs-action caches per package + version fingerprint.
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: clang-format-${{ env.CLANG_VER }}
+          version: 1.0
+
+      # Check formatting.
+      # For each C++ file: format in-memory, diff vs. original.
+      # On failure:
+      #   • Emit ::error:: annotation (shows up as inline file comment in PR).
+      #   • Append unified diff to $GITHUB_STEP_SUMMARY (visible in Actions tab).
+      # Exit 1 if any file needs changes.
+      - name: Check formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Collect all C++ sources and headers (null-separated for safety).
+          mapfile -d '' SOURCES < <(
+            find src include -type f \( -name '*.cpp' -o -name '*.h' \) -print0 \
+            | sort -z
+          )
+
+          FAILED=0
+
+          {
+            echo "## clang-format report"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for f in "${SOURCES[@]}"; do
+            FORMATTED=$(clang-format-${{ env.CLANG_VER }} "$f")
+            if ! diff -q <(printf '%s' "$FORMATTED") "$f" > /dev/null 2>&1; then
+              FAILED=1
+
+              # Inline file annotation in the PR / push view.
+              # Docs: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/workflow-commands-for-github-actions#setting-an-error-message
+              echo "::error file=${f}::File is not formatted. Run: clang-format-${{ env.CLANG_VER }} -i ${f}"
+
+              # Write unified diff to the Job Summary tab.
+              {
+                echo "### \`${f}\`"
+                echo ""
+                echo '```diff'
+                diff --unified=3 "$f" <(printf '%s' "$FORMATTED") || true
+                echo '```'
+                echo ""
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+          if [[ "$FAILED" -eq 0 ]]; then
+            echo "✅ All files are formatted correctly." >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "---"
+              echo ""
+              echo "**Fix all at once:**"
+              echo '```bash'
+              echo "find src include -name '*.cpp' -o -name '*.h' \\"
+              echo "  | xargs clang-format-${{ env.CLANG_VER }} -i"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 2 · clang-tidy
+#
+# Strategy:
+#   1. cmake configure (ENABLE_CLANG_TIDY=OFF) — only to produce compile_commands.json.
+#      No compilation: clang-tidy reads the DB directly, much faster.
+#   2. Register a problem matcher so raw clang-tidy output is automatically parsed
+#      into inline file annotations by GitHub Actions.
+#   3. Run clang-tidy directly on all .cpp files with --warnings-as-errors='*'.
+#   4. Write a structured markdown summary to $GITHUB_STEP_SUMMARY.
+# ─────────────────────────────────────────────────────────────────────────────
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            clang-${{ env.CLANG_VER }}
+            clang-tidy-${{ env.CLANG_VER }}
+            libeigen3-dev
+            libavformat-dev
+            libavcodec-dev
+            libavutil-dev
+            libswscale-dev
+          version: 1.0
+
+      # cmake configure only — produces build/compile_commands.json.
+      # ENABLE_CLANG_TIDY=OFF so we drive clang-tidy directly (cleaner output).
+      # CMAKE_EXPORT_COMPILE_COMMANDS=ON is already set in CMakeLists.txt,
+      # but passed here explicitly for documentation.
+      - name: Configure (generate compile_commands.json)
+        run: |
+          cmake -B build \
+            -DCMAKE_CXX_COMPILER=clang++-${{ env.CLANG_VER }} \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_CLANG_TIDY=OFF
+
+      # Problem matchers parse raw clang-tidy text output into GitHub file
+      # annotations (shown inline on the Files tab of a PR).
+      # The matcher JSON follows the Actions toolkit spec:
+      #   https://github.com/actions/toolkit/blob/main/docs/problem-matchers.md
+      # Same mechanism used by actions/setup-node (for ESLint) and
+      # microsoft/vscode-cpptools (for clang diagnostics).
+      - name: Register clang-tidy problem matcher
+        run: |
+          cat > /tmp/clang-tidy-matcher.json <<'EOF'
+          {
+            "problemMatcher": [{
+              "owner": "clang-tidy",
+              "pattern": [{
+                "regexp": "^(.+):(\\d+):(\\d+): (error|warning): (.+)$",
+                "file": 1,
+                "line": 2,
+                "column": 3,
+                "severity": 4,
+                "message": 5
+              }]
+            }]
+          }
+          EOF
+          echo "::add-matcher::/tmp/clang-tidy-matcher.json"
+
+      # Run clang-tidy on all translation units.
+      # --warnings-as-errors='*': exit non-zero on any warning (CI strictness).
+      # Output is captured to /tmp/tidy-out.txt so we can:
+      #   a) echo it (triggers the problem matcher above → inline annotations)
+      #   b) parse it for the Job Summary table
+      - name: Run clang-tidy
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # Collect .cpp files (headers are pulled in via #include).
+          SOURCES=$(find src -name '*.cpp' | sort | tr '\n' ' ')
+
+          # Run clang-tidy; capture output even on failure.
+          set +e
+          clang-tidy-${{ env.CLANG_VER }} \
+            -p build \
+            --warnings-as-errors='*' \
+            $SOURCES \
+            > /tmp/tidy-out.txt 2>&1
+          TIDY_EXIT=$?
+          set -e
+
+          # Print raw output — the problem matcher parses this into annotations.
+          cat /tmp/tidy-out.txt
+
+          # ── Job Summary ────────────────────────────────────────────────────
+          TIDY_OUTPUT=$(cat /tmp/tidy-out.txt)
+
+          WARN_COUNT=$(echo "$TIDY_OUTPUT" | grep -c ': warning:' || true)
+          ERR_COUNT=$(echo "$TIDY_OUTPUT"  | grep -c ': error:'   || true)
+
+          {
+            echo "## clang-tidy report"
+            echo ""
+
+            if [[ "$TIDY_EXIT" -eq 0 ]]; then
+              echo "✅ clang-tidy found no issues."
+            else
+              echo "| Severity | Count |"
+              echo "|----------|-------|"
+              echo "| ⚠️ warnings | ${WARN_COUNT} |"
+              echo "| ❌ errors   | ${ERR_COUNT} |"
+              echo ""
+              echo "### Findings"
+              echo ""
+              echo "| File | Line | Severity | Message |"
+              echo "|------|------|----------|---------|"
+              # Parse lines matching the clang-tidy diagnostic format.
+              # Limit to first 60 rows to keep the summary readable.
+              echo "$TIDY_OUTPUT" \
+                | grep -E '^.+:[0-9]+:[0-9]+: (warning|error):' \
+                | head -60 \
+                | while IFS= read -r line; do
+                    # Extract fields: file:line:col: sev: msg [check]
+                    FILE=$(echo "$line" | cut -d: -f1)
+                    LINENUM=$(echo "$line" | cut -d: -f2)
+                    SEV=$(echo "$line" | grep -oP '(warning|error)' | head -1)
+                    MSG=$(echo "$line" | sed 's/^[^:]*:[^:]*:[^:]*: [^:]*: //')
+                    echo "| \`${FILE##*/}\` | ${LINENUM} | ${SEV} | ${MSG} |"
+                  done
+              echo ""
+              echo "> [!TIP]"
+              echo "> Reproduce locally:"
+              echo '> ```bash'
+              echo "> cmake -B build -DENABLE_CLANG_TIDY=ON -DCLANG_TIDY_WARNINGS_AS_ERRORS=ON"
+              echo "> cmake --build build"
+              echo '> ```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit "$TIDY_EXIT"
