@@ -1,0 +1,56 @@
+name: Multi-platform Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libeigen3-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+
+      - name: Install Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install pkg-config eigen ffmpeg
+
+      - name: Install FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+
+      - name: Install Eigen (Windows)
+        if: runner.os == 'Windows'
+        uses: kupns-aka-kupa/setup-eigen3@v1
+        with:
+          version: 3.4.0
+
+      - name: Verify FFmpeg installation
+        shell: bash
+        run: ffmpeg -version
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-app-${{ matrix.os }}
+          path: |
+            build/OpticalFlowVideoTracking
+            build/Release/OpticalFlowVideoTracking.exe
