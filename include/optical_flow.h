@@ -27,9 +27,8 @@ struct TrackedFeature {
     Eigen::Vector2d current_pos{Eigen::Vector2d::Zero()}; 
     bool is_lost{false}; 
     
-    TrackedFeature(const Eigen::Vector2d& previous, const Eigen::Vector2d& current, bool lost = false) : 
-    previous_pos(previous), current_pos(current), is_lost(lost) 
-    {}
+    TrackedFeature(Eigen::Vector2d previous, Eigen::Vector2d current, bool lost = false)
+    : previous_pos(std::move(previous)), current_pos(std::move(current)), is_lost(lost) {}
 };
 
 void calcOpticalFlowLK(

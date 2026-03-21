@@ -8,14 +8,16 @@ void calcOpticalFlowLK(
     std::vector<TrackedFeature>& features,
     int neighborhood_size
 ) {
-    Eigen::MatrixXd grad_x, grad_y, grad_t;
+    Eigen::MatrixXd grad_x;
+    Eigen::MatrixXd grad_y;
+    Eigen::MatrixXd grad_t;
     vision::computeDerivatives(img_prev, img_next, grad_x, grad_y, grad_t);
     int half_win = neighborhood_size / 2;
 
     for (auto& feat : features) {
         if (feat.is_lost) { continue; }
-        int pixel_x = std::round(feat.previous_pos.x()); 
-        int pixel_y = std::round(feat.previous_pos.y());
+        int pixel_x = static_cast<int>(std::round(feat.previous_pos.x()));
+        int pixel_y = static_cast<int>(std::round(feat.previous_pos.y()));
 
         // check if the neighborhood is fully contained in the image
         if (((pixel_x-half_win < 0) || (pixel_y-half_win < 0)) 
@@ -25,9 +27,9 @@ void calcOpticalFlowLK(
         }
 
         // construct the design_matrix and observation_vector for the least squares problem
-        const unsigned int num_elements = neighborhood_size * neighborhood_size;
-        Eigen::MatrixXd design_matrix(num_elements, 2);
-        Eigen::MatrixXd observation_vector(num_elements, 1);
+        const unsigned int NUM_ELEMENTS = neighborhood_size * neighborhood_size;
+        Eigen::MatrixXd design_matrix(NUM_ELEMENTS, 2);
+        Eigen::MatrixXd observation_vector(NUM_ELEMENTS, 1);
 
         for(int dx=0; dx<neighborhood_size; ++dx) {
             for(int dy=0; dy<neighborhood_size; ++dy) {
