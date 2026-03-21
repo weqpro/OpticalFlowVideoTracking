@@ -1,5 +1,7 @@
 #ifndef OPTICAL_FLOW_H
 #define OPTICAL_FLOW_H
+#include <Eigen/Dense> 
+#include <vector>
 
 namespace vision {
 
@@ -21,9 +23,13 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
 } // !namespace vision
 
 struct TrackedFeature {
-    Eigen::Vector2d previous_pos;
-    Eigen::Vector2d current_pos;
-    bool is_lost{false};
+    Eigen::Vector2d previous_pos{Eigen::Vector2d::Zero()}; 
+    Eigen::Vector2d current_pos{Eigen::Vector2d::Zero()}; 
+    bool is_lost{false}; 
+    
+    TrackedFeature(const Eigen::Vector2d& previous, const Eigen::Vector2d& current, bool lost = false) : 
+    previous_pos(previous), current_pos(current), is_lost(lost) 
+    {}
 };
 
 void calcOpticalFlowLK(
