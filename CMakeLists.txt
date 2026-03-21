@@ -12,11 +12,31 @@ include(cmake/ClangTidy.cmake)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
 # --- FFmpeg (libav) ---
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(AVFORMAT REQUIRED libavformat)
-pkg_check_modules(AVCODEC  REQUIRED libavcodec)
-pkg_check_modules(AVUTIL   REQUIRED libavutil)
-pkg_check_modules(SWSCALE  REQUIRED libswscale)
+if(WIN32)
+    file(TO_CMAKE_PATH "$ENV{FFMPEG_PATH}" FFMPEG_BASE_DIR)
+    message(STATUS "Using FFMPEG_PATH: ${FFMPEG_BASE_DIR}")
+
+    find_path(AVFORMAT_INCLUDE_DIRS NAMES libavformat/avformat.h HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(AVCODEC_INCLUDE_DIRS  NAMES libavcodec/avcodec.h   HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(AVUTIL_INCLUDE_DIRS   NAMES libavutil/avutil.h    HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(SWSCALE_INCLUDE_DIRS  NAMES libswscale/swscale.h   HINTS "${FFMPEG_BASE_DIR}/include")
+
+    find_library(AVFORMAT_LIBRARIES NAMES avformat HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(AVCODEC_LIBRARIES  NAMES avcodec  HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(AVUTIL_LIBRARIES   NAMES avutil   HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(SWSCALE_LIBRARIES  NAMES swscale  HINTS "${FFMPEG_BASE_DIR}/lib")
+
+    set(FFMPEG_LIBS ${AVFORMAT_LIBRARIES} ${AVCODEC_LIBRARIES} ${AVUTIL_LIBRARIES} ${SWSCALE_LIBRARIES})
+    set(FFMPEG_INCLUDES ${AVFORMAT_INCLUDE_DIRS} ${AVCODEC_INCLUDE_DIRS} ${AVUTIL_INCLUDE_DIRS} ${SWSCALE_INCLUDE_DIRS})
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(AVFORMAT REQUIRED IMPORTED_TARGET libavformat)
+    pkg_check_modules(AVCODEC  REQUIRED IMPORTED_TARGET libavcodec)
+    pkg_check_modules(AVUTIL   REQUIRED IMPORTED_TARGET libavutil)
+    pkg_check_modules(SWSCALE  REQUIRED IMPORTED_TARGET libswscale)
+    
+    set(FFMPEG_LIBS PkgConfig::AVFORMAT PkgConfig::AVCODEC PkgConfig::AVUTIL PkgConfig::SWSCALE)
+endif()
 
 # --- Executable ---
 add_executable(${PROJECT_NAME}
@@ -24,35 +44,23 @@ add_executable(${PROJECT_NAME}
     src/video/stream.cpp
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
-    ${AVFORMAT_INCLUDE_DIRS}
-    ${AVCODEC_INCLUDE_DIRS}
-    ${AVUTIL_INCLUDE_DIRS}
-    ${SWSCALE_INCLUDE_DIRS}
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include 
+    ${FFMPEG_INCLUDES}
 )
 
-target_link_directories(${PROJECT_NAME} PRIVATE
-    ${AVFORMAT_LIBRARY_DIRS}
-    ${AVCODEC_LIBRARY_DIRS}
-    ${AVUTIL_LIBRARY_DIRS}
-    ${SWSCALE_LIBRARY_DIRS}
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    Eigen3::Eigen 
+    ${FFMPEG_LIBS}
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    Eigen3::Eigen
-    ${AVFORMAT_LIBRARIES}
-    ${AVCODEC_LIBRARIES}
-    ${AVUTIL_LIBRARIES}
-    ${SWSCALE_LIBRARIES}
-)
-
-target_compile_options(${PROJECT_NAME} PRIVATE
-    ${AVFORMAT_CFLAGS_OTHER}
-    ${AVCODEC_CFLAGS_OTHER}
-    ${AVUTIL_CFLAGS_OTHER}
-    ${SWSCALE_CFLAGS_OTHER}
-)
+if(WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${FFMPEG_BASE_DIR}/bin"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    )
+endif()
 
 if(ENABLE_CLANG_TIDY)
   target_enable_clang_tidy(${PROJECT_NAME})
