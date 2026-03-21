@@ -12,11 +12,25 @@ include(cmake/ClangTidy.cmake)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
 # --- FFmpeg (libav) ---
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(AVFORMAT REQUIRED libavformat)
-pkg_check_modules(AVCODEC  REQUIRED libavcodec)
-pkg_check_modules(AVUTIL   REQUIRED libavutil)
-pkg_check_modules(SWSCALE  REQUIRED libswscale)
+if(WIN32)
+    find_path(AVFORMAT_INCLUDE_DIRS libavformat/avformat.h)
+    find_library(AVFORMAT_LIBRARIES avformat)
+    
+    find_path(AVCODEC_INCLUDE_DIRS libavcodec/avcodec.h)
+    find_library(AVCODEC_LIBRARIES avcodec)
+    
+    find_path(AVUTIL_INCLUDE_DIRS libavutil/avutil.h)
+    find_library(AVUTIL_LIBRARIES avutil)
+    
+    find_path(SWSCALE_INCLUDE_DIRS libswscale/swscale.h)
+    find_library(SWSCALE_LIBRARIES swscale)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(AVFORMAT REQUIRED libavformat)
+    pkg_check_modules(AVCODEC  REQUIRED libavcodec)
+    pkg_check_modules(AVUTIL   REQUIRED libavutil)
+    pkg_check_modules(SWSCALE  REQUIRED libswscale)
+endif()
 
 # --- Executable ---
 add_executable(${PROJECT_NAME}
@@ -32,26 +46,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${SWSCALE_INCLUDE_DIRS}
 )
 
-target_link_directories(${PROJECT_NAME} PRIVATE
-    ${AVFORMAT_LIBRARY_DIRS}
-    ${AVCODEC_LIBRARY_DIRS}
-    ${AVUTIL_LIBRARY_DIRS}
-    ${SWSCALE_LIBRARY_DIRS}
-)
-
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Eigen3::Eigen
     ${AVFORMAT_LIBRARIES}
     ${AVCODEC_LIBRARIES}
     ${AVUTIL_LIBRARIES}
     ${SWSCALE_LIBRARIES}
-)
-
-target_compile_options(${PROJECT_NAME} PRIVATE
-    ${AVFORMAT_CFLAGS_OTHER}
-    ${AVCODEC_CFLAGS_OTHER}
-    ${AVUTIL_CFLAGS_OTHER}
-    ${SWSCALE_CFLAGS_OTHER}
 )
 
 if(ENABLE_CLANG_TIDY)
