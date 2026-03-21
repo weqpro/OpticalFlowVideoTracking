@@ -13,18 +13,18 @@ find_package(Eigen3 REQUIRED NO_MODULE)
 
 # --- FFmpeg (libav) ---
 if(WIN32)
-    find_path(AVFORMAT_INCLUDE_DIRS libavformat/avformat.h)
-    find_library(AVFORMAT_LIBRARIES avformat)
+    file(TO_CMAKE_PATH "$ENV{FFMPEG_PATH}" FFMPEG_BASE_DIR)
     
-    find_path(AVCODEC_INCLUDE_DIRS libavcodec/avcodec.h)
-    find_library(AVCODEC_LIBRARIES avcodec)
-    
-    find_path(AVUTIL_INCLUDE_DIRS libavutil/avutil.h)
-    find_library(AVUTIL_LIBRARIES avutil)
-    
-    find_path(SWSCALE_INCLUDE_DIRS libswscale/swscale.h)
-    find_library(SWSCALE_LIBRARIES swscale)
-    
+    find_path(AVFORMAT_INCLUDE_DIRS NAMES libavformat/avformat.h HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(AVCODEC_INCLUDE_DIRS  NAMES libavcodec/avcodec.h   HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(AVUTIL_INCLUDE_DIRS   NAMES libavutil/avutil.h    HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(SWSCALE_INCLUDE_DIRS  NAMES libswscale/swscale.h   HINTS "${FFMPEG_BASE_DIR}/include")
+
+    find_library(AVFORMAT_LIBRARIES NAMES avformat HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(AVCODEC_LIBRARIES  NAMES avcodec  HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(AVUTIL_LIBRARIES   NAMES avutil   HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(SWSCALE_LIBRARIES  NAMES swscale  HINTS "${FFMPEG_BASE_DIR}/lib")
+
     set(FFMPEG_LIBS ${AVFORMAT_LIBRARIES} ${AVCODEC_LIBRARIES} ${AVUTIL_LIBRARIES} ${SWSCALE_LIBRARIES})
     set(FFMPEG_INCLUDES ${AVFORMAT_INCLUDE_DIRS} ${AVCODEC_INCLUDE_DIRS} ${AVUTIL_INCLUDE_DIRS} ${SWSCALE_INCLUDE_DIRS})
 else()
