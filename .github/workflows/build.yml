@@ -33,8 +33,8 @@ jobs:
         id: cache-vckpg
         uses: actions/cache@v4
         with:
-          path: C:/vcpkg/packages
-          key: ${{ runner.os }}-vkcpg-v1
+          path: C:/vcpkg/installed
+          key: ${{ runner.os }}-vcpkg-v2
 
       - name: Install Dependencies (Windows - vcpkg)
         if: runner.os == 'Windows' && steps.cache-vckpg.outputs.cache-hit != 'true'
