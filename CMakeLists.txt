@@ -13,17 +13,18 @@ find_package(Eigen3 REQUIRED NO_MODULE)
 
 # --- FFmpeg (libav) ---
 if(WIN32)
-    file(TO_CMAKE_PATH "$ENV{FFMPEG_PATH}" FFMPEG_DIR)
-    
-    find_path(AVFORMAT_INCLUDE_DIRS NAMES libavformat/avformat.h HINTS "${FFMPEG_DIR}/include")
-    find_path(AVCODEC_INCLUDE_DIRS  NAMES libavcodec/avcodec.h   HINTS "${FFMPEG_DIR}/include")
-    find_path(AVUTIL_INCLUDE_DIRS   NAMES libavutil/avutil.h    HINTS "${FFMPEG_DIR}/include")
-    find_path(SWSCALE_INCLUDE_DIRS  NAMES libswscale/swscale.h   HINTS "${FFMPEG_DIR}/include")
+    file(TO_CMAKE_PATH "$ENV{FFMPEG_PATH}" FFMPEG_BASE_DIR)
+    message(STATUS "Using FFMPEG_PATH: ${FFMPEG_BASE_DIR}")
 
-    find_library(AVFORMAT_LIBRARIES NAMES avformat HINTS "${FFMPEG_DIR}/lib")
-    find_library(AVCODEC_LIBRARIES  NAMES avcodec  HINTS "${FFMPEG_DIR}/lib")
-    find_library(AVUTIL_LIBRARIES   NAMES avutil   HINTS "${FFMPEG_DIR}/lib")
-    find_library(SWSCALE_LIBRARIES  NAMES swscale  HINTS "${FFMPEG_DIR}/lib")
+    find_path(AVFORMAT_INCLUDE_DIRS NAMES libavformat/avformat.h HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(AVCODEC_INCLUDE_DIRS  NAMES libavcodec/avcodec.h   HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(AVUTIL_INCLUDE_DIRS   NAMES libavutil/avutil.h    HINTS "${FFMPEG_BASE_DIR}/include")
+    find_path(SWSCALE_INCLUDE_DIRS  NAMES libswscale/swscale.h   HINTS "${FFMPEG_BASE_DIR}/include")
+
+    find_library(AVFORMAT_LIBRARIES NAMES avformat HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(AVCODEC_LIBRARIES  NAMES avcodec  HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(AVUTIL_LIBRARIES   NAMES avutil   HINTS "${FFMPEG_BASE_DIR}/lib")
+    find_library(SWSCALE_LIBRARIES  NAMES swscale  HINTS "${FFMPEG_BASE_DIR}/lib")
 
     set(FFMPEG_LIBS ${AVFORMAT_LIBRARIES} ${AVCODEC_LIBRARIES} ${AVUTIL_LIBRARIES} ${SWSCALE_LIBRARIES})
     set(FFMPEG_INCLUDES ${AVFORMAT_INCLUDE_DIRS} ${AVCODEC_INCLUDE_DIRS} ${AVUTIL_INCLUDE_DIRS} ${SWSCALE_INCLUDE_DIRS})
@@ -34,12 +35,7 @@ else()
     pkg_check_modules(AVUTIL   REQUIRED IMPORTED_TARGET libavutil)
     pkg_check_modules(SWSCALE  REQUIRED IMPORTED_TARGET libswscale)
     
-    set(FFMPEG_LIBS 
-        PkgConfig::AVFORMAT 
-        PkgConfig::AVCODEC 
-        PkgConfig::AVUTIL 
-        PkgConfig::SWSCALE
-    )
+    set(FFMPEG_LIBS PkgConfig::AVFORMAT PkgConfig::AVCODEC PkgConfig::AVUTIL PkgConfig::SWSCALE)
 endif()
 
 # --- Executable ---
@@ -60,7 +56,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 if(WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${FFMPEG_BASE_DIR}/bin" "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${FFMPEG_BASE_DIR}/bin"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
     )
 endif()
 
