@@ -8,9 +8,9 @@ namespace vision {
 void computeDerivatives(
     const Eigen::MatrixXd& img_prev, 
     const Eigen::MatrixXd& img_next, 
-    Eigen::MatrixXd& Ix, 
-    Eigen::MatrixXd& Iy, 
-    Eigen::MatrixXd& It
+    Eigen::MatrixXd& grad_x, 
+    Eigen::MatrixXd& grad_y, 
+    Eigen::MatrixXd& grad_t
 );
 
 std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
