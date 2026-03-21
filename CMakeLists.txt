@@ -48,16 +48,21 @@ add_executable(${PROJECT_NAME}
     src/video/stream.cpp
 )
 
-if(WIN32)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${FFMPEG_INCLUDES})
-else()
-    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
-endif()
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include 
+    ${FFMPEG_INCLUDES}
+)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    Eigen3::Eigen
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    Eigen3::Eigen 
     ${FFMPEG_LIBS}
 )
+
+if(WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${FFMPEG_BASE_DIR}/bin" "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    )
+endif()
 
 if(ENABLE_CLANG_TIDY)
   target_enable_clang_tidy(${PROJECT_NAME})
