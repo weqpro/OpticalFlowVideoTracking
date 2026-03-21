@@ -31,15 +31,16 @@ jobs:
         with:
           ffmpeg-version: release
 
-      - name: Install Eigen (Windows)
+      - name: Install Dependencies (Windows)
         if: runner.os == 'Windows'
-        uses: kupns-aka-kupa/setup-eigen3@v1
-        with:
-          version: 3.4.0
+        run: |
+          vcpkg install eigen3:x64-windows
 
-      - name: Verify FFmpeg installation
-        shell: bash
-        run: ffmpeg -version
+      - name: Install FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
