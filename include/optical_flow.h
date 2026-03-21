@@ -20,8 +20,6 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
     double min_distance = 10.0
 );
 
-} // !namespace vision
-
 struct TrackedFeature {
     Eigen::Vector2d previous_pos{Eigen::Vector2d::Zero()}; 
     Eigen::Vector2d current_pos{Eigen::Vector2d::Zero()}; 
@@ -37,5 +35,7 @@ void calcOpticalFlowLK(
     std::vector<TrackedFeature>& features,
     int neighborhood_size = 3
 );
+
+} // !namespace vision
 
 #endif // OPTICAL_FLOW_H

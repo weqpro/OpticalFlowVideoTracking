@@ -2,6 +2,8 @@
 #include <iostream>
 #include <cmath>
 
+namespace vision{
+
 void calcOpticalFlowLK(
     const Eigen::MatrixXd& img_prev,
     const Eigen::MatrixXd& img_next,
@@ -53,4 +55,6 @@ void calcOpticalFlowLK(
         Eigen::Vector2d flow_vector = hessian_matrix.inverse() * b_new;
         feat.current_pos = feat.previous_pos + flow_vector;
     }
+}
+
 }
