@@ -72,7 +72,7 @@ Stream::Stream(const std::string& path) {
         "avformat_find_stream_info"
     );
 
-    const AVCodec* decoder = nullptr;
+    AVCodec* decoder = nullptr;
     int idx = av_find_best_stream(
         format_ctx_.get(), AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0
     );
