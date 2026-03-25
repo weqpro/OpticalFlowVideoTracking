@@ -61,6 +61,11 @@ jobs:
         shell: bash
         run: echo "FFMPEG_PATH=C:/ffmpeg" >> $GITHUB_ENV
 
+      - name: Add FFmpeg to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "C:/ffmpeg/bin" >> $GITHUB_PATH
+
       - name: Configure
         shell: bash
         run: |
