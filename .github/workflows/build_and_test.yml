@@ -1,4 +1,4 @@
-name: Multi-platform Build
+name: Multi-platform Build & Testing
 
 on:
   push:

@@ -40,7 +40,7 @@ add_library(core_lib
 
 target_include_directories(core_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
-target_link_libraries(core_lib PRIVATE 
+target_link_libraries(core_lib PUBLIC 
     Eigen3::Eigen 
     ${FFMPEG_LIBS}
 )
