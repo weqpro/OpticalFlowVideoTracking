@@ -1,17 +1,16 @@
 #include <gtest/gtest.h>
+#include <stdexcept>
+#include <string>
 
-int add(int a, int b){
-    return a+b;
-}
+#include "video/stream.h" 
 
-TEST(MathTest, AddsPositiveNumbers) {
-    // Arrange
-    int a = 5;
-    int b = 7;
+// TEST(НазваСутностіTest, ЩоРобимо_ЗаЯкихУмов_ЩоОчікуємо)
+TEST(VideoStreamTest, Constructor_WhenFileDoesNotExist_ThrowsRuntimeError) {
+    // 1. Arrange 
+    std::string bad_path = "non_existent_fake_video.mp4";
 
-    // Act
-    int result = add(a, b);
-
-    // Assert
-    EXPECT_EQ(result, 12);
+    // 2 & 3. Act & Assert
+    EXPECT_THROW({
+        video::Stream stream(bad_path);
+    }, std::runtime_error);
 }
