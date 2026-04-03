@@ -137,34 +137,34 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
 =======
     const int ROWS = static_cast<int>(image.rows());
     const int COLS = static_cast<int>(image.cols());
-    Eigen::MatrixXd Ix = Eigen::MatrixXd::Zero(ROWS, COLS);
-    Eigen::MatrixXd Iy = Eigen::MatrixXd::Zero(ROWS, COLS);
+    Eigen::MatrixXd grad_x = Eigen::MatrixXd::Zero(ROWS, COLS);
+    Eigen::MatrixXd grad_y = Eigen::MatrixXd::Zero(ROWS, COLS);
     
-    Eigen::Matrix3d kX;
-    Eigen::Matrix3d kY;
-    kX << -3, 0, 3, -10, 0, 10, -3, 0, 3;
-    kY << -3, -10, -3, 0, 0, 0, 3, 10, 3;
+    Eigen::Matrix3d kernel_x;
+    Eigen::Matrix3d kernel_y;
+    kernel_x << -3, 0, 3, -10, 0, 10, -3, 0, 3;
+    kernel_y << -3, -10, -3, 0, 0, 0, 3, 10, 3;
 
     // 1. Spatial gradients using Eigen blocks
     for (int i = 1; i < ROWS - 1; ++i) {
         for (int j = 1; j < COLS - 1; ++j) {
             auto region = image.block<3, 3>(i - 1, j - 1).array();
-            Ix(i, j) = (region * kX.array()).sum();
-            Iy(i, j) = (region * kY.array()).sum();
+            grad_x(i, j) = (region * kernel_x.array()).sum();
+            grad_y(i, j) = (region * kernel_y.array()).sum();
         }
     }
 
     // 2. Structure Tensor components
-    Eigen::MatrixXd Ixx = Ix.array().square();
-    Eigen::MatrixXd Iyy = Iy.array().square();
-    Eigen::MatrixXd Ixy = Ix.array() * Iy.array();
+    Eigen::MatrixXd grad_xx = grad_x.array().square();
+    Eigen::MatrixXd grad_yy = grad_y.array().square();
+    Eigen::MatrixXd grad_xy = grad_x.array() * grad_y.array();
     Eigen::MatrixXd eig_min = Eigen::MatrixXd::Zero(ROWS, COLS);
 
     for (int i = 1; i < ROWS - 1; ++i) {
         for (int j = 1; j < COLS - 1; ++j) {
-            double sum_xx = Ixx.block<3, 3>(i - 1, j - 1).sum();
-            double sum_yy = Iyy.block<3, 3>(i - 1, j - 1).sum();
-            double sum_xy = Ixy.block<3, 3>(i - 1, j - 1).sum();
+            double sum_xx = grad_xx.block<3, 3>(i - 1, j - 1).sum();
+            double sum_yy = grad_yy.block<3, 3>(i - 1, j - 1).sum();
+            double sum_xy = grad_xy.block<3, 3>(i - 1, j - 1).sum();
             eig_min(i, j) = 0.5 * (sum_xx + sum_yy - std::sqrt((sum_xx - sum_yy) * (sum_xx - sum_yy) + 4 * sum_xy * sum_xy));
         }
     }
