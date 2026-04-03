@@ -1,8 +1,8 @@
-name: Multi-platform Build
+name: Multi-platform Build & Testing
 
 on:
   push:
-    branches: [main]
+    branches: [main, test-workflow]
   pull_request:
 
 env:
@@ -61,6 +61,11 @@ jobs:
         shell: bash
         run: echo "FFMPEG_PATH=C:/ffmpeg" >> $GITHUB_ENV
 
+      - name: Add FFmpeg to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "C:/ffmpeg/bin" >> $GITHUB_PATH
+
       - name: Configure
         shell: bash
         run: |
@@ -72,11 +77,15 @@ jobs:
 
       - name: Build
         run: cmake --build build --config Release
+      
+      - name: Run Tests
+        run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: my-app-${{ matrix.os }}
           path: |
+            build/bin/
             build/OpticalFlowVideoTracking
             build/Release/
