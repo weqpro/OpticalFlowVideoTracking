@@ -114,12 +114,14 @@ std::vector<CornerCandidate> collectLocalMaxima(const Eigen::MatrixXd& eig_min, 
 
 // --- Public API Implementation ---
 
+// NOLINTNEXTLINE(readability-function-size)
 std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
     const Eigen::MatrixXd& image,
     int max_corners,
     double quality_level,
     double min_distance
 ) {
+<<<<<<< HEAD
     if (image.rows() < 3 || image.cols() < 3) return {};
 
     Eigen::MatrixXd Ix;
@@ -132,11 +134,61 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
     auto candidates = collectLocalMaxima(eig_min, threshold);
 
     std::sort(candidates.begin(), candidates.end(), [](const CornerCandidate& lhs, const CornerCandidate& rhs) {
+=======
+    const int ROWS = static_cast<int>(image.rows());
+    const int COLS = static_cast<int>(image.cols());
+    Eigen::MatrixXd Ix = Eigen::MatrixXd::Zero(ROWS, COLS);
+    Eigen::MatrixXd Iy = Eigen::MatrixXd::Zero(ROWS, COLS);
+    
+    Eigen::Matrix3d kX;
+    Eigen::Matrix3d kY;
+    kX << -3, 0, 3, -10, 0, 10, -3, 0, 3;
+    kY << -3, -10, -3, 0, 0, 0, 3, 10, 3;
+
+    // 1. Spatial gradients using Eigen blocks
+    for (int i = 1; i < ROWS - 1; ++i) {
+        for (int j = 1; j < COLS - 1; ++j) {
+            auto region = image.block<3, 3>(i - 1, j - 1).array();
+            Ix(i, j) = (region * kX.array()).sum();
+            Iy(i, j) = (region * kY.array()).sum();
+        }
+    }
+
+    // 2. Structure Tensor components
+    Eigen::MatrixXd Ixx = Ix.array().square();
+    Eigen::MatrixXd Iyy = Iy.array().square();
+    Eigen::MatrixXd Ixy = Ix.array() * Iy.array();
+    Eigen::MatrixXd eig_min = Eigen::MatrixXd::Zero(ROWS, COLS);
+
+    for (int i = 1; i < ROWS - 1; ++i) {
+        for (int j = 1; j < COLS - 1; ++j) {
+            double sum_xx = Ixx.block<3, 3>(i - 1, j - 1).sum();
+            double sum_yy = Iyy.block<3, 3>(i - 1, j - 1).sum();
+            double sum_xy = Ixy.block<3, 3>(i - 1, j - 1).sum();
+            eig_min(i, j) = 0.5 * (sum_xx + sum_yy - std::sqrt((sum_xx - sum_yy) * (sum_xx - sum_yy) + 4 * sum_xy * sum_xy));
+        }
+    }
+
+    // 3. Thresholding and Sorting
+    double threshold = eig_min.maxCoeff() * quality_level;
+    struct Corner { int r, c; double val; };
+    std::vector<Corner> candidates;
+    for (int i = 0; i < ROWS; ++i) {
+        for (int j = 0; j < COLS; ++j) {
+            if (eig_min(i, j) > threshold) {
+                candidates.push_back({i, j, eig_min(i, j)});
+            }
+        }
+    }
+
+    std::sort(candidates.begin(), candidates.end(), [](const Corner& lhs, const Corner& rhs) {
+>>>>>>> b0aa954 (Fix lint)
         return lhs.val > rhs.val;
     });
 
     std::vector<Eigen::Vector2d> corners;
     for (const auto& cand : candidates) {
+<<<<<<< HEAD
         if (corners.size() >= static_cast<size_t>(max_corners)) break;
         
         bool far_enough = true;
@@ -145,6 +197,20 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
                 far_enough = false;
                 break;
             }
+=======
+        if (corners.size() >= static_cast<size_t>(max_corners)) {
+            break;
+        }
+        bool is_candidate_ok = true;
+        for (const auto& existing_corner : corners) {
+            if ((Eigen::Vector2d(cand.c, cand.r) - existing_corner).norm() < min_distance) {
+                is_candidate_ok = false;
+                break;
+            }
+        }
+        if (is_candidate_ok) {
+            corners.emplace_back(cand.c, cand.r);
+>>>>>>> b0aa954 (Fix lint)
         }
         if (far_enough) corners.emplace_back(cand.c, cand.r);
     }
