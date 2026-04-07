@@ -9,5 +9,5 @@ Copyright 2026 Konovalenko Stanislav and Hombosh Oleh
 
 ## Video
 
-- Stanislav Konovalenko:
-- Hombosh Oleh: https://youtu.be/qdFO_dptG9Q
+- Stanislav Konovalenko: [YouTube](https://youtu.be/mMappyirUGM?si=1NfK5A0wVT_a-lS0)
+- Hombosh Oleh: [YouTube](https://youtu.be/qdFO_dptG9Q)
