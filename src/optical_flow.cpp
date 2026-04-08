@@ -176,11 +176,11 @@ static bool solveLKSystem(
     Eigen::MatrixXd design_matrix(NUM_ELEMENTS, 2);
     Eigen::VectorXd observation_vector(NUM_ELEMENTS);
 
-    for(int i = 0; i < neighborhood_size; ++i) {
-        for(int j = 0; j < neighborhood_size; ++j) {
-            int idx = i * neighborhood_size + j;
-            double cur_x = center_x - half_win + i;
-            double cur_y = center_y - half_win + j;
+    for(int row_offset = -half_win; row_offset <= half_win; ++row_offset) {
+        for(int col_offset = -half_win; col_offset <= half_win; ++col_offset) {
+            int idx = (row_offset + half_win) * neighborhood_size + (col_offset + half_win);
+            double cur_x = center_x + static_cast<double>(col_offset);
+            double cur_y = center_y + static_cast<double>(row_offset);
 
             design_matrix(idx, 0) = bilinearInterpolation(grad_x, cur_x, cur_y);
             design_matrix(idx, 1) = bilinearInterpolation(grad_y, cur_x, cur_y);
@@ -189,7 +189,7 @@ static bool solveLKSystem(
     }
 
     Eigen::Matrix2d hessian = design_matrix.transpose() * design_matrix;
-    if (std::abs(hessian.determinant()) < 1e-6) {
+    if (std::abs(hessian.determinant()) < 1e-9) {
         return false;
     }
 
