@@ -31,12 +31,12 @@ void computeDerivatives(
     grad_y.setZero(ROWS, COLS);
     grad_t = img_next - img_prev;
 
-    for (int y = 1; y < ROWS - 1; ++y) {
-        for (int x = 1; x < COLS - 1; ++x) {
-            grad_x(y, x) = (img_prev(y, x + 1) - img_prev(y, x - 1) + 
-                            img_next(y, x + 1) - img_next(y, x - 1)) / 4.0;
-            grad_y(y, x) = (img_prev(y + 1, x) - img_prev(y - 1, x) + 
-                            img_next(y + 1, x) - img_next(y - 1, x)) / 4.0;
+    for (int row_idx = 1; row_idx < ROWS - 1; ++row_idx) {
+        for (int col_idx = 1; col_idx < COLS - 1; ++col_idx) {
+            grad_x(row_idx, col_idx) = (img_prev(row_idx, col_idx + 1) - img_prev(row_idx, col_idx - 1) + 
+                            img_next(row_idx, col_idx + 1) - img_next(row_idx, col_idx - 1)) / 4.0;
+            grad_y(row_idx, col_idx) = (img_prev(row_idx + 1, col_idx) - img_prev(row_idx - 1, col_idx) + 
+                            img_next(row_idx + 1, col_idx) - img_next(row_idx - 1, col_idx)) / 4.0;
         }
     }
 }
