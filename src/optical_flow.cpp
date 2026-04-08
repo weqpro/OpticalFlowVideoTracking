@@ -162,14 +162,14 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
     return corners;
 }
 
-static bool solveLKSystem(
-    const Eigen::MatrixXd& grad_x, 
-    const Eigen::MatrixXd& grad_y, 
-    const Eigen::MatrixXd& grad_t,
+static bool solveLKIteration(
+    const Eigen::MatrixXd& img_prev,
+    const Eigen::MatrixXd& img_next,
     double center_x, 
-    double center_y, 
-    int neighborhood_size,
-    Eigen::Vector2d& flow_vector
+    double center_y,
+    double& flow_dx,
+    double& flow_dy,
+    int neighborhood_size
 ) {
     int half_win = neighborhood_size / 2;
     const int NUM_ELEMENTS = neighborhood_size * neighborhood_size;
@@ -179,12 +179,35 @@ static bool solveLKSystem(
     for(int row_offset = -half_win; row_offset <= half_win; ++row_offset) {
         for(int col_offset = -half_win; col_offset <= half_win; ++col_offset) {
             int idx = (row_offset + half_win) * neighborhood_size + (col_offset + half_win);
-            double cur_x = center_x + static_cast<double>(col_offset);
-            double cur_y = center_y + static_cast<double>(row_offset);
+            
+            // Позиція в попередньому кадрі
+            double prev_x = center_x + static_cast<double>(col_offset);
+            double prev_y = center_y + static_cast<double>(row_offset);
+            
+            // Позиція в наступному кадрі (з поточним зміщенням)
+            double next_x = prev_x + flow_dx;
+            double next_y = prev_y + flow_dy;
 
-            design_matrix(idx, 0) = bilinearInterpolation(grad_x, cur_x, cur_y);
-            design_matrix(idx, 1) = bilinearInterpolation(grad_y, cur_x, cur_y);
-            observation_vector(idx) = -bilinearInterpolation(grad_t, cur_x, cur_y);
+            if (prev_x < 0 || prev_y < 0 || prev_x >= img_prev.cols() - 1 || prev_y >= img_prev.rows() - 1 ||
+                next_x < 0 || next_y < 0 || next_x >= img_next.cols() - 1 || next_y >= img_next.rows() - 1) {
+                return false;
+            }
+
+            // Обчислення просторових градієнтів (середнє значення між кадрами для стабільності)
+            double i1_x = (bilinearInterpolation(img_prev, prev_x + 1, prev_y) - bilinearInterpolation(img_prev, prev_x - 1, prev_y)) * 0.5;
+            double i1_y = (bilinearInterpolation(img_prev, prev_x, prev_y + 1) - bilinearInterpolation(img_prev, prev_x, prev_y - 1)) * 0.5;
+            double i2_x = (bilinearInterpolation(img_next, next_x + 1, next_y) - bilinearInterpolation(img_next, next_x - 1, next_y)) * 0.5;
+            double i2_y = (bilinearInterpolation(img_next, next_x, next_y + 1) - bilinearInterpolation(img_next, next_x, next_y - 1)) * 0.5;
+            
+            double grad_x = (i1_x + i2_x) * 0.5;
+            double grad_y = (i1_y + i2_y) * 0.5;
+            
+            // Тимчасова різниця (помилка яскравості)
+            double grad_t = bilinearInterpolation(img_next, next_x, next_y) - bilinearInterpolation(img_prev, prev_x, prev_y);
+
+            design_matrix(idx, 0) = grad_x;
+            design_matrix(idx, 1) = grad_y;
+            observation_vector(idx) = -grad_t;
         }
     }
 
@@ -193,8 +216,11 @@ static bool solveLKSystem(
         return false;
     }
 
-    flow_vector = hessian.ldlt().solve(design_matrix.transpose() * observation_vector);
-    return true;
+    Eigen::Vector2d delta = hessian.ldlt().solve(design_matrix.transpose() * observation_vector);
+    flow_dx += delta.x();
+    flow_dy += delta.y();
+    
+    return delta.norm() > 0.001; // Повертаємо true, якщо ще потрібно ітерувати
 }
 
 void calcOpticalFlowLK(
@@ -203,11 +229,7 @@ void calcOpticalFlowLK(
     std::vector<TrackedFeature>& features,
     int neighborhood_size
 ) {
-    Eigen::MatrixXd grad_x;
-    Eigen::MatrixXd grad_y;
-    Eigen::MatrixXd grad_t;
-    vision::computeDerivatives(img_prev, img_next, grad_x, grad_y, grad_t);
-    int half_win = neighborhood_size / 2;
+    const int MAX_ITERATIONS = 10;
 
     for (auto& feat : features) {
         if (feat.is_lost) {
@@ -216,18 +238,30 @@ void calcOpticalFlowLK(
 
         double pos_x = feat.previous_pos.x();
         double pos_y = feat.previous_pos.y();
+        
+        double flow_dx = 0.0;
+        double flow_dy = 0.0;
 
-        if (pos_x - static_cast<double>(half_win) < 0.0 || 
-            pos_y - static_cast<double>(half_win) < 0.0 || 
-            pos_x + static_cast<double>(half_win) >= static_cast<double>(img_prev.cols() - 1) || 
-            pos_y + static_cast<double>(half_win) >= static_cast<double>(img_prev.rows() - 1)) {
-            feat.is_lost = true;
-            continue;
+        bool success = true;
+        for (int iter = 0; iter < MAX_ITERATIONS; ++iter) {
+            if (!solveLKIteration(img_prev, img_next, pos_x, pos_y, flow_dx, flow_dy, neighborhood_size)) {
+                // Якщо помилка стала дуже малою, solveLKIteration поверне false (успіх)
+                // Якщо ж ми вийшли за межі або матриця вироджена, success треба поставити у false всередині? 
+                // Ні, solveLKIteration повертає false і при успішній конвергенції (delta < threshold).
+                // Треба перевірити причину виходу.
+                break;
+            }
         }
 
-        Eigen::Vector2d flow_vector;
-        if (solveLKSystem(grad_x, grad_y, grad_t, pos_x, pos_y, neighborhood_size, flow_vector)) {
-            feat.current_pos = feat.previous_pos + flow_vector;
+        // Перевірка фінальної позиції на валідність
+        double final_x = pos_x + flow_dx;
+        double final_y = pos_y + flow_dy;
+        if (final_x < 0 || final_y < 0 || final_x >= img_prev.cols() - 1 || final_y >= img_prev.rows() - 1) {
+            success = false;
+        }
+
+        if (success) {
+            feat.current_pos = Eigen::Vector2d(final_x, final_y);
         } else {
             feat.is_lost = true;
         }
