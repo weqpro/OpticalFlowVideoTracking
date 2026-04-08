@@ -50,6 +50,14 @@ void calcOpticalFlowLK(
     int neighborhood_size = 3
 );
 
-} // !namespace vision
+double bilinearInterpolation(
+    const Eigen::MatrixXd& mat,
+    double x,
+    double y);
+
+std::vector<Eigen::MatrixXd> buildGaussianPyramid(
+    const Eigen::MatrixXd& img, 
+    int levels
+);
 
 #endif // OPTICAL_FLOW_H

@@ -16,7 +16,23 @@
 #include <iostream>
 #include <cmath>
 
-namespace vision{
+double bilinearInterpolation(const Eigen::MatrixXd& mat, double x, double y) {
+    int x0 = std::floor(x);
+    int y0 = std::floor(y);
+
+    double dx = x - x0;
+    double dy = y - y0;
+    
+    double v00 = mat(y0, x0);         
+    double v10 = mat(y0, x0 + 1);     
+    double v01 = mat(y0 + 1, x0);     
+    double v11 = mat(y0 + 1, x0 + 1); 
+    
+    return (v00 * (1 - dx) * (1 - dy) +
+            v10 * dx * (1 - dy) +
+            v01 * (1 - dx) * dy +
+            v11 * dx * dy);
+}
 
 void calcOpticalFlowLK(
     const Eigen::MatrixXd& img_prev,
@@ -24,20 +40,18 @@ void calcOpticalFlowLK(
     std::vector<TrackedFeature>& features,
     int neighborhood_size
 ) {
-    Eigen::MatrixXd grad_x;
-    Eigen::MatrixXd grad_y;
-    Eigen::MatrixXd grad_t;
+    Eigen::MatrixXd grad_x, grad_y, grad_t;
     vision::computeDerivatives(img_prev, img_next, grad_x, grad_y, grad_t);
     int half_win = neighborhood_size / 2;
 
     for (auto& feat : features) {
         if (feat.is_lost) { continue; }
-        int pixel_x = static_cast<int>(std::round(feat.previous_pos.x()));
-        int pixel_y = static_cast<int>(std::round(feat.previous_pos.y()));
 
-        // check if the neighborhood is fully contained in the image
-        if (((pixel_x-half_win < 0) || (pixel_y-half_win < 0)) 
-         || ((pixel_x+half_win >= img_prev.cols()) || (pixel_y+half_win >= img_prev.rows()) )) {
+        double x = feat.previous_pos.x();
+        double y = feat.previous_pos.y();
+
+        if (x - half_win < 0 || y - half_win < 0 || 
+            x + half_win + 1 >= img_prev.cols() || y + half_win + 1 >= img_prev.rows()) {
             feat.is_lost = true;
             continue;
         }
@@ -47,16 +61,22 @@ void calcOpticalFlowLK(
         Eigen::MatrixXd design_matrix(NUM_ELEMENTS, 2);
         Eigen::MatrixXd observation_vector(NUM_ELEMENTS, 1);
 
-        for(int dx=0; dx<neighborhood_size; ++dx) {
-            for(int dy=0; dy<neighborhood_size; ++dy) {
-                int idx = dx * neighborhood_size + dy;
-                design_matrix(idx, 0) = grad_x(pixel_y - half_win + dy, pixel_x - half_win + dx);
-                design_matrix(idx, 1) = grad_y(pixel_y - half_win + dy, pixel_x - half_win + dx);
-                observation_vector(idx, 0) = -grad_t(pixel_y - half_win + dy, pixel_x - half_win + dx);
+        for(int i = 0; i < neighborhood_size; ++i) {
+            for(int j = 0; j < neighborhood_size; ++j) {
+                int idx = i * neighborhood_size + j;
+
+                double cur_x = x - half_win + i;
+                double cur_y = y - half_win + j;
+
+                double gx = bilinearInterpolation(grad_x, cur_x, cur_y);
+                double gy = bilinearInterpolation(grad_y, cur_x, cur_y);
+                double gt = bilinearInterpolation(grad_t, cur_x, cur_y);
+
+                design_matrix(idx, 0) = gx;
+                design_matrix(idx, 1) = gy;
+                observation_vector(idx, 0) = -gt;
             }
         }
-
-        // solve for the flow vector using least squares
         Eigen::Matrix2d hessian_matrix = design_matrix.transpose() * design_matrix;
         Eigen::Vector2d b_new = design_matrix.transpose() * observation_vector;
 
