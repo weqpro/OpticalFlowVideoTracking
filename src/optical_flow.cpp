@@ -58,9 +58,9 @@ void computeSpatialGradients(const Eigen::MatrixXd& image, Eigen::MatrixXd& grad
 
     for (int row_idx = 1; row_idx < ROWS_COUNT - 1; ++row_idx) {
         for (int col_idx = 1; col_idx < COLS_COUNT - 1; ++col_idx) {
-            const auto region = image.block<3, 3>(row_idx - 1, col_idx - 1).array();
-            grad_ix(row_idx, col_idx) = (region * kernel_x.array()).sum();
-            grad_iy(row_idx, col_idx) = (region * kernel_y.array()).sum();
+            const auto REGION = image.block<3, 3>(row_idx - 1, col_idx - 1).array();
+            grad_ix(row_idx, col_idx) = (REGION * kernel_x.array()).sum();
+            grad_iy(row_idx, col_idx) = (REGION * kernel_y.array()).sum();
         }
     }
 }
@@ -69,16 +69,16 @@ Eigen::MatrixXd computeMinEigenvalueMap(const Eigen::MatrixXd& grad_ix, const Ei
     const int ROWS_COUNT = static_cast<int>(grad_ix.rows());
     const int COLS_COUNT = static_cast<int>(grad_ix.cols());
     
-    const Eigen::MatrixXd ixx = grad_ix.array().square();
-    const Eigen::MatrixXd iyy = grad_iy.array().square();
-    const Eigen::MatrixXd ixy = grad_ix.array() * grad_iy.array();
+    const Eigen::MatrixXd IXX = grad_ix.array().square();
+    const Eigen::MatrixXd IYY = grad_iy.array().square();
+    const Eigen::MatrixXd IXY = grad_ix.array() * grad_iy.array();
     Eigen::MatrixXd eig_min = Eigen::MatrixXd::Zero(ROWS_COUNT, COLS_COUNT);
 
     for (int row_idx = 1; row_idx < ROWS_COUNT - 1; ++row_idx) {
         for (int col_idx = 1; col_idx < COLS_COUNT - 1; ++col_idx) {
-            const double SUM_XX = ixx.block<3, 3>(row_idx - 1, col_idx - 1).sum();
-            const double SUM_YY = iyy.block<3, 3>(row_idx - 1, col_idx - 1).sum();
-            const double SUM_XY = ixy.block<3, 3>(row_idx - 1, col_idx - 1).sum();
+            const double SUM_XX = IXX.block<3, 3>(row_idx - 1, col_idx - 1).sum();
+            const double SUM_YY = IYY.block<3, 3>(row_idx - 1, col_idx - 1).sum();
+            const double SUM_XY = IXY.block<3, 3>(row_idx - 1, col_idx - 1).sum();
             eig_min(row_idx, col_idx) = 0.5 * (SUM_XX + SUM_YY - std::sqrt((SUM_XX - SUM_YY) * (SUM_XX - SUM_YY) + 4.0 * SUM_XY * SUM_XY));
         }
     }
@@ -117,22 +117,22 @@ std::vector<CornerCandidate> collectLocalMaxima(const Eigen::MatrixXd& eig_min, 
 
 void computePixelGradients(
     const Eigen::MatrixXd& img_prev, const Eigen::MatrixXd& img_next,
-    const Eigen::Vector2d& prev_pos, const Eigen::Vector2d& next_pos,
+    const Eigen::Vector2d& PREV_POS, const Eigen::Vector2d& NEXT_POS,
     double& grad_x, double& grad_y, double& grad_t
 ) {
-    const double PREV_X = prev_pos.x();
-    const double PREV_Y = prev_pos.y();
-    const double NEXT_X = next_pos.x();
-    const double NEXT_Y = next_pos.y();
+    const double P_X = PREV_POS.x();
+    const double P_Y = PREV_POS.y();
+    const double N_X = NEXT_POS.x();
+    const double N_Y = NEXT_POS.y();
 
-    const double I1_X = (bilinearInterpolation(img_prev, PREV_X + 1.0, PREV_Y) - bilinearInterpolation(img_prev, PREV_X - 1.0, PREV_Y)) * 0.5;
-    const double I1_Y = (bilinearInterpolation(img_prev, PREV_X, PREV_Y + 1.0) - bilinearInterpolation(img_prev, PREV_X, PREV_Y - 1.0)) * 0.5;
-    const double I2_X = (bilinearInterpolation(img_next, NEXT_X + 1.0, NEXT_Y) - bilinearInterpolation(img_next, NEXT_X - 1.0, NEXT_Y)) * 0.5;
-    const double I2_Y = (bilinearInterpolation(img_next, NEXT_X, NEXT_Y + 1.0) - bilinearInterpolation(img_next, NEXT_X, NEXT_Y - 1.0)) * 0.5;
+    const double I1_X = (bilinearInterpolation(img_prev, P_X + 1.0, P_Y) - bilinearInterpolation(img_prev, P_X - 1.0, P_Y)) * 0.5;
+    const double I1_Y = (bilinearInterpolation(img_prev, P_X, P_Y + 1.0) - bilinearInterpolation(img_prev, P_X, P_Y - 1.0)) * 0.5;
+    const double I2_X = (bilinearInterpolation(img_next, N_X + 1.0, N_Y) - bilinearInterpolation(img_next, N_X - 1.0, N_Y)) * 0.5;
+    const double I2_Y = (bilinearInterpolation(img_next, N_X, N_Y + 1.0) - bilinearInterpolation(img_next, N_X, N_Y - 1.0)) * 0.5;
     
     grad_x = (I1_X + I2_X) * 0.5;
     grad_y = (I1_Y + I2_Y) * 0.5;
-    grad_t = bilinearInterpolation(img_next, NEXT_X, NEXT_Y) - bilinearInterpolation(img_prev, PREV_X, PREV_Y);
+    grad_t = bilinearInterpolation(img_next, N_X, N_Y) - bilinearInterpolation(img_prev, P_X, P_Y);
 }
 
 // --- Public API Implementation ---
@@ -145,11 +145,11 @@ static void refineCorner(const Eigen::MatrixXd& image, Eigen::Vector2d& corner) 
         double current_grad_t = 0.0;
         computePixelGradients(image, image, corner, corner, current_grad_x, current_grad_y, current_grad_t);
         
-        const Eigen::Vector2d delta(current_grad_x, current_grad_y);
-        if (delta.norm() < 0.01) {
+        const Eigen::Vector2d DELTA_VEC(current_grad_x, current_grad_y);
+        if (DELTA_VEC.norm() < 0.01) {
             break;
         }
-        corner += delta * 0.1; 
+        corner += DELTA_VEC * 0.1; 
     }
 }
 
@@ -167,10 +167,10 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
     Eigen::MatrixXd grad_iy;
     computeSpatialGradients(image, grad_ix, grad_iy);
     
-    const Eigen::MatrixXd eig_min = computeMinEigenvalueMap(grad_ix, grad_iy);
+    const Eigen::MatrixXd EIG_MIN = computeMinEigenvalueMap(grad_ix, grad_iy);
     
-    const double THRESHOLD = eig_min.maxCoeff() * QUALITY_LEVEL;
-    auto candidates = collectLocalMaxima(eig_min, THRESHOLD);
+    const double THRESHOLD = EIG_MIN.maxCoeff() * QUALITY_LEVEL;
+    auto candidates = collectLocalMaxima(EIG_MIN, THRESHOLD);
 
     std::sort(candidates.begin(), candidates.end(), [](const CornerCandidate& lhs, const CornerCandidate& rhs) {
         return lhs.val > rhs.val;
@@ -214,40 +214,40 @@ static int solveLKIteration(
 
     for(int row_offset = -HALF_WIN; row_offset <= HALF_WIN; ++row_offset) {
         for(int col_offset = -HALF_WIN; col_offset <= HALF_WIN; ++col_offset) {
-            const int idx = (row_offset + HALF_WIN) * NEIGHBORHOOD_SIZE + (col_offset + HALF_WIN);
-            const Eigen::Vector2d prev_pos(CENTER_X + static_cast<double>(col_offset), CENTER_Y + static_cast<double>(row_offset));
-            const Eigen::Vector2d next_pos(prev_pos.x() + flow_dx, prev_pos.y() + flow_dy);
+            const int IDX = (row_offset + HALF_WIN) * NEIGHBORHOOD_SIZE + (col_offset + HALF_WIN);
+            const Eigen::Vector2d PREV_POS(CENTER_X + static_cast<double>(col_offset), CENTER_Y + static_cast<double>(row_offset));
+            const Eigen::Vector2d NEXT_POS(PREV_POS.x() + flow_dx, PREV_POS.y() + flow_dy);
 
-            if (prev_pos.x() < 1.0 || prev_pos.y() < 1.0 || 
-                prev_pos.x() >= static_cast<double>(img_prev.cols()) - 1.0 || 
-                prev_pos.y() >= static_cast<double>(img_prev.rows()) - 1.0 ||
-                next_pos.x() < 1.0 || next_pos.y() < 1.0 || 
-                next_pos.x() >= static_cast<double>(img_next.cols()) - 1.0 || 
-                next_y >= static_cast<double>(img_next.rows()) - 1.0) {
+            if (PREV_POS.x() < 1.0 || PREV_POS.y() < 1.0 || 
+                PREV_POS.x() >= static_cast<double>(img_prev.cols()) - 1.0 || 
+                PREV_POS.y() >= static_cast<double>(img_prev.rows()) - 1.0 ||
+                NEXT_POS.x() < 1.0 || NEXT_POS.y() < 1.0 || 
+                NEXT_POS.x() >= static_cast<double>(img_next.cols()) - 1.0 || 
+                NEXT_POS.y() >= static_cast<double>(img_next.rows()) - 1.0) {
                 return -1;
             }
 
             double current_gx = 0.0;
             double current_gy = 0.0;
             double current_gt = 0.0;
-            computePixelGradients(img_prev, img_next, prev_pos, next_pos, current_gx, current_gy, current_gt);
+            computePixelGradients(img_prev, img_next, PREV_POS, NEXT_POS, current_gx, current_gy, current_gt);
 
-            design_matrix(idx, 0) = current_gx;
-            design_matrix(idx, 1) = current_gy;
-            observation_vector(idx) = -current_gt;
+            design_matrix(IDX, 0) = current_gx;
+            design_matrix(IDX, 1) = current_gy;
+            observation_vector(IDX) = -current_gt;
         }
     }
 
-    const Eigen::Matrix2d hessian = design_matrix.transpose() * design_matrix;
-    if (std::abs(hessian.determinant()) < 1e-9) {
+    const Eigen::Matrix2d HESSIAN_MAT = design_matrix.transpose() * design_matrix;
+    if (std::abs(HESSIAN_MAT.determinant()) < 1e-9) {
         return -1;
     }
 
-    const Eigen::Vector2d delta = hessian.ldlt().solve(design_matrix.transpose() * observation_vector);
-    flow_dx += delta.x();
-    flow_dy += delta.y();
+    const Eigen::Vector2d DELTA_VEC = HESSIAN_MAT.ldlt().solve(design_matrix.transpose() * observation_vector);
+    flow_dx += DELTA_VEC.x();
+    flow_dy += DELTA_VEC.y();
     
-    return (delta.norm() < 0.001) ? 0 : 1;
+    return (DELTA_VEC.norm() < 0.001) ? 0 : 1;
 }
 
 void calcOpticalFlowLK(
@@ -270,11 +270,11 @@ void calcOpticalFlowLK(
 
         bool tracking_failed = false;
         for (int iter = 0; iter < MAX_ITERATIONS; ++iter) {
-            const int res = solveLKIteration(img_prev, img_next, POS_X, POS_Y, flow_dx, flow_dy, NEIGHBORHOOD_SIZE);
-            if (res == 0) {
+            const int RES_STATUS = solveLKIteration(img_prev, img_next, POS_X, POS_Y, flow_dx, flow_dy, NEIGHBORHOOD_SIZE);
+            if (RES_STATUS == 0) {
                 break; 
             }
-            if (res == -1) {
+            if (RES_STATUS == -1) {
                 tracking_failed = true;
                 break; 
             }
