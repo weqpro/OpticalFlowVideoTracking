@@ -24,15 +24,15 @@ void computeDerivatives(
     Eigen::MatrixXd& grad_y, 
     Eigen::MatrixXd& grad_t
 ) {
-    const int rows = static_cast<int>(img_prev.rows());
-    const int cols = static_cast<int>(img_prev.cols());
+    const int ROWS = static_cast<int>(img_prev.rows());
+    const int COLS = static_cast<int>(img_prev.cols());
 
-    grad_x.setZero(rows, cols);
-    grad_y.setZero(rows, cols);
+    grad_x.setZero(ROWS, COLS);
+    grad_y.setZero(ROWS, COLS);
     grad_t = img_next - img_prev;
 
-    for (int y = 1; y < rows - 1; ++y) {
-        for (int x = 1; x < cols - 1; ++x) {
+    for (int y = 1; y < ROWS - 1; ++y) {
+        for (int x = 1; x < COLS - 1; ++x) {
             grad_x(y, x) = (img_prev(y, x + 1) - img_prev(y, x - 1) + 
                             img_next(y, x + 1) - img_next(y, x - 1)) / 4.0;
             grad_y(y, x) = (img_prev(y + 1, x) - img_prev(y - 1, x) + 
