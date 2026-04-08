@@ -38,4 +38,9 @@ void calcOpticalFlowLK(
     int neighborhood_size = 3
 );
 
+double bilinearInterpolation(
+    const Eigen::MatrixXd& mat,
+    double x,
+    double y);
+
 #endif // OPTICAL_FLOW_H
