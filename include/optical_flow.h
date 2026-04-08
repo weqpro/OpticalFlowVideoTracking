@@ -42,8 +42,8 @@ std::vector<CornerCandidate> collectLocalMaxima(
 
 void computePixelGradients(
     const Eigen::MatrixXd& img_prev, const Eigen::MatrixXd& img_next,
-    double prev_x, double prev_y, double next_x, double next_y,
-    double& out_gx, double& out_gy, double& out_gt
+    const Eigen::Vector2d& prev_pos, const Eigen::Vector2d& next_pos,
+    double& grad_x, double& grad_y, double& grad_t
 );
 
 std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
