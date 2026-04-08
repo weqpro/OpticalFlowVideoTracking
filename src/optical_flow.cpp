@@ -45,11 +45,11 @@ double bilinearInterpolation(const Eigen::MatrixXd& mat, double x_coord, double 
             val11 * delta_x * delta_y);
 }
 
-void computeSpatialGradients(const Eigen::MatrixXd& image, Eigen::MatrixXd& Ix, Eigen::MatrixXd& Iy) {
+void computeSpatialGradients(const Eigen::MatrixXd& image, Eigen::MatrixXd& grad_ix, Eigen::MatrixXd& grad_iy) {
     const int rows_count = static_cast<int>(image.rows());
     const int cols_count = static_cast<int>(image.cols());
-    Ix.setZero(rows_count, cols_count);
-    Iy.setZero(rows_count, cols_count);
+    grad_ix.setZero(rows_count, cols_count);
+    grad_iy.setZero(rows_count, cols_count);
     
     Eigen::Matrix3d kernel_x;
     Eigen::Matrix3d kernel_y;
@@ -59,19 +59,19 @@ void computeSpatialGradients(const Eigen::MatrixXd& image, Eigen::MatrixXd& Ix, 
     for (int i = 1; i < rows_count - 1; ++i) {
         for (int j = 1; j < cols_count - 1; ++j) {
             auto region = image.block<3, 3>(i - 1, j - 1).array();
-            Ix(i, j) = (region * kernel_x.array()).sum();
-            Iy(i, j) = (region * kernel_y.array()).sum();
+            grad_ix(i, j) = (region * kernel_x.array()).sum();
+            grad_iy(i, j) = (region * kernel_y.array()).sum();
         }
     }
 }
 
-Eigen::MatrixXd computeMinEigenvalueMap(const Eigen::MatrixXd& Ix, const Eigen::MatrixXd& Iy) {
-    const int rows_count = static_cast<int>(Ix.rows());
-    const int cols_count = static_cast<int>(Ix.cols());
+Eigen::MatrixXd computeMinEigenvalueMap(const Eigen::MatrixXd& grad_ix, const Eigen::MatrixXd& grad_iy) {
+    const int rows_count = static_cast<int>(grad_ix.rows());
+    const int cols_count = static_cast<int>(grad_ix.cols());
     
-    Eigen::MatrixXd Ixx = Ix.array().square();
-    Eigen::MatrixXd Iyy = Iy.array().square();
-    Eigen::MatrixXd Ixy = Ix.array() * Iy.array();
+    Eigen::MatrixXd Ixx = grad_ix.array().square();
+    Eigen::MatrixXd Iyy = grad_iy.array().square();
+    Eigen::MatrixXd Ixy = grad_ix.array() * grad_iy.array();
     Eigen::MatrixXd eig_min = Eigen::MatrixXd::Zero(rows_count, cols_count);
 
     for (int i = 1; i < rows_count - 1; ++i) {
@@ -114,22 +114,19 @@ std::vector<CornerCandidate> collectLocalMaxima(const Eigen::MatrixXd& eig_min, 
 
 // --- Public API Implementation ---
 
-// NOLINTNEXTLINE(readability-function-size)
 std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
     const Eigen::MatrixXd& image,
     int max_corners,
     double quality_level,
     double min_distance
 ) {
-    if (image.rows() < 3 || image.cols() < 3) {
-        return {};
-    }
+    if (image.rows() < 3 || image.cols() < 3) return {};
 
-    Eigen::MatrixXd Ix;
-    Eigen::MatrixXd Iy;
-    computeSpatialGradients(image, Ix, Iy);
+    Eigen::MatrixXd grad_ix;
+    Eigen::MatrixXd grad_iy;
+    computeSpatialGradients(image, grad_ix, grad_iy);
     
-    Eigen::MatrixXd eig_min = computeMinEigenvalueMap(Ix, Iy);
+    Eigen::MatrixXd eig_min = computeMinEigenvalueMap(grad_ix, grad_iy);
     
     double threshold = eig_min.maxCoeff() * quality_level;
     auto candidates = collectLocalMaxima(eig_min, threshold);
@@ -149,9 +146,7 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
                 break;
             }
         }
-        if (far_enough) {
-            corners.emplace_back(cand.c, cand.r);
-        }
+        if (far_enough) corners.emplace_back(cand.c, cand.r);
     }
     return corners;
 }
@@ -239,7 +234,7 @@ std::vector<Eigen::MatrixXd> buildGaussianPyramid(const Eigen::MatrixXd& img, in
         Eigen::MatrixXd downsampled(new_rows, new_cols);
         for (int r = 0; r < new_rows; ++r) {
             for (int c = 0; c < new_cols; ++c) {
-                downsampled(r, c) = prev_img.block<2, 2>(r * 2, c * 2).mean();
+                downsampled(r, c) = prev_img.block<2, 2>(static_cast<Eigen::Index>(r) * 2, static_cast<Eigen::Index>(c) * 2).mean();
             }
         }
         pyramid.push_back(downsampled);

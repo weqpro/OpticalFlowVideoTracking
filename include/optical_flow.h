@@ -26,13 +26,13 @@ struct CornerCandidate {
 
 void computeSpatialGradients(
     const Eigen::MatrixXd& image, 
-    Eigen::MatrixXd& Ix, 
-    Eigen::MatrixXd& Iy
+    Eigen::MatrixXd& grad_ix, 
+    Eigen::MatrixXd& grad_iy
 );
 
 Eigen::MatrixXd computeMinEigenvalueMap(
-    const Eigen::MatrixXd& Ix, 
-    const Eigen::MatrixXd& Iy
+    const Eigen::MatrixXd& grad_ix, 
+    const Eigen::MatrixXd& grad_iy
 );
 
 std::vector<CornerCandidate> collectLocalMaxima(
