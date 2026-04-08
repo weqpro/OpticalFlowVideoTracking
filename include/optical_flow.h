@@ -60,4 +60,6 @@ std::vector<Eigen::MatrixXd> buildGaussianPyramid(
     int levels
 );
 
+} // namespace vision
+
 #endif // OPTICAL_FLOW_H
