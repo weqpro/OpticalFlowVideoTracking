@@ -16,6 +16,8 @@
 #include <iostream>
 #include <cmath>
 
+namespace vision {
+
 double bilinearInterpolation(const Eigen::MatrixXd& mat, double x, double y) {
     int x0 = std::floor(x);
     int y0 = std::floor(y);
@@ -91,4 +93,4 @@ void calcOpticalFlowLK(
     }
 }
 
-}
+} // namespace vision

@@ -36,6 +36,8 @@ endif()
 
 add_library(core_lib 
     src/video/stream.cpp
+    src/optical_flow.cpp
+    src/deriv.cpp
 )
 
 target_include_directories(core_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
