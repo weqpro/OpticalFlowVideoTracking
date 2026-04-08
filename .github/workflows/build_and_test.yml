@@ -22,11 +22,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg pkg-config libeigen3-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+          sudo apt-get install -y ffmpeg pkg-config libeigen3-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libopencv-dev
 
       - name: Install Dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install eigen ffmpeg
+        run: brew install eigen ffmpeg opencv
 
       - name: Cache dependencies (Windows - vcpkg)
         if: runner.os == 'Windows'
@@ -34,11 +34,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:/vcpkg/installed
-          key: ${{ runner.os }}-vcpkg-v2
+          key: ${{ runner.os }}-vcpkg-v3
 
       - name: Install Dependencies (Windows - vcpkg)
         if: runner.os == 'Windows' && steps.cache-vckpg.outputs.cache-hit != 'true'
-        run: vcpkg install eigen3:x64-windows
+        run: vcpkg install eigen3:x64-windows opencv4:x64-windows
 
       - name: Cache dependencies (Windows - FFmpeg)
         id: cache-ffmpeg
