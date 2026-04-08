@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "optical_flow.h"
 #include <iostream>
 #include <vector>
+#include <Eigen/Dense>
+#include "optical_flow.h"
 
 int main() {
     // 1. Створення двох синтетичних кадрів (10x10)
