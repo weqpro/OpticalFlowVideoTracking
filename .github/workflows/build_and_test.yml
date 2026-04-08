@@ -34,7 +34,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:/vcpkg/installed
-          key: ${{ runner.os }}-vcpkg-v3
+          key: ${{ runner.os }}-vcpkg-v4-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-v4-
 
       - name: Install Dependencies (Windows - vcpkg)
         if: runner.os == 'Windows' && steps.cache-vckpg.outputs.cache-hit != 'true'

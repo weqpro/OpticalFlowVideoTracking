@@ -31,8 +31,8 @@ double bilinearInterpolation(const Eigen::MatrixXd& mat, double x_coord, double 
                    std::clamp(x_base, 0, static_cast<int>(mat.cols() - 1)));
     }
 
-    double delta_x = x_coord - x_base;
-    double delta_y = y_coord - y_base;
+    double delta_x = x_coord - static_cast<double>(x_base);
+    double delta_y = y_coord - static_cast<double>(y_base);
     
     double val00 = mat(y_base, x_base);         
     double val10 = mat(y_base, x_base + 1);     
@@ -150,13 +150,13 @@ std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
         
         bool far_enough = true;
         for (const auto& existing : corners) {
-            if ((Eigen::Vector2d(cand.c, cand.r) - existing).norm() < min_distance) {
+            if ((Eigen::Vector2d(static_cast<double>(cand.c), static_cast<double>(cand.r)) - existing).norm() < min_distance) {
                 far_enough = false;
                 break;
             }
         }
         if (far_enough) {
-            corners.emplace_back(cand.c, cand.r);
+            corners.emplace_back(static_cast<double>(cand.c), static_cast<double>(cand.r));
         }
     }
     return corners;
@@ -189,7 +189,7 @@ static bool solveLKSystem(
     }
 
     Eigen::Matrix2d hessian = design_matrix.transpose() * design_matrix;
-    if (std::abs(hessian.determinant()) < 1e-9) {
+    if (std::abs(hessian.determinant()) < 1e-12) {
         return false;
     }
 
@@ -217,9 +217,10 @@ void calcOpticalFlowLK(
         double pos_x = feat.previous_pos.x();
         double pos_y = feat.previous_pos.y();
 
-        if (pos_x - static_cast<double>(half_win) < 0.0 || pos_y - static_cast<double>(half_win) < 0.0 || 
-            pos_x + static_cast<double>(half_win) + 1.0 >= static_cast<double>(img_prev.cols()) || 
-            pos_y + static_cast<double>(half_win) + 1.0 >= static_cast<double>(img_prev.rows())) {
+        if (pos_x - static_cast<double>(half_win) < 0.0 || 
+            pos_y - static_cast<double>(half_win) < 0.0 || 
+            pos_x + static_cast<double>(half_win) >= static_cast<double>(img_prev.cols() - 1) || 
+            pos_y + static_cast<double>(half_win) >= static_cast<double>(img_prev.rows() - 1)) {
             feat.is_lost = true;
             continue;
         }
