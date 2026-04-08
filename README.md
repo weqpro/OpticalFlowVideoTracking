@@ -13,14 +13,14 @@ Copyright 2026 Konovalenko Stanislav and Hombosh Oleh
 
 ## Prerequisites
 
-- C++ Compiler: Visual Studio 2019+ (MSVC) або MinGW-w64 (з підтримкою C++20)
+- C++ Compiler: Visual Studio 2019+ (MSVC) or MinGW-w64 (with C++20 support)
 - CMake: 3.16+
-- Eigen3: Бібліотека для лінійної алгебри
-- FFmpeg: Потрібно встановити та додати шлях до системної змінної FFMPEG_PATH (наприклад, C:\ffmpeg)
+- Eigen3: Library for linear algebra
+- FFmpeg: Must be installed and added to the system variable FFMPEG_PATH (e.g., C:\ffmpeg)
 
 ## Compilation
 
-Для Windows (використовуючи PowerShell або Command Prompt):
+For Windows (using PowerShell or Command Prompt):
 
 ```sh
 mkdir build
@@ -29,7 +29,7 @@ cmake .. -DENABLE_CLANG_TIDY=OFF
 cmake --build . --config Release
 ```
 
-Примітка: Файли FFmpeg (.dll) будуть автоматично скопійовані в директорію з виконуваним файлом після успішної збірки.
+Note: FFmpeg files (.dll) will be automatically copied to the executable directory after a successful build.
 
 ## Installation
 
@@ -40,15 +40,13 @@ cd OpticalFlowVideoTracking
 
 ## Usage
 
-Після успішної компіляції виконуваний файл буде знаходитись у папці build/bin/Release (або просто
-build/bin). Для запуску програми скористайтесь командою:
+After successful compilation, the executable file will be located in the build/bin/Release folder (or just build/bin). To run the program, use the following command:
 
 ```sh
 .\build\bin\Release\OpticalFlowVideoTracking.exe
 ```
 
-Приклад виводу:
+Example output:
 
 1 Initial position: 5 5
 2 Estimated flow vector: 1 0
-
