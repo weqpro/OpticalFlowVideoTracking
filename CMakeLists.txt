@@ -3,19 +3,15 @@ project(OpticalFlowVideoTracking LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# Always generate compile_commands.json (needed by clang-tidy and clangd).
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 include(cmake/ClangTidy.cmake)
 
-# --- Eigen ---
 find_package(Eigen3 REQUIRED NO_MODULE)
 
-# --- FFmpeg (libav) ---
 if(WIN32)
     file(TO_CMAKE_PATH "$ENV{FFMPEG_PATH}" FFMPEG_BASE_DIR)
-    message(STATUS "Using FFMPEG_PATH: ${FFMPEG_BASE_DIR}")
-
     find_path(AVFORMAT_INCLUDE_DIRS NAMES libavformat/avformat.h HINTS "${FFMPEG_BASE_DIR}/include")
     find_path(AVCODEC_INCLUDE_DIRS  NAMES libavcodec/avcodec.h   HINTS "${FFMPEG_BASE_DIR}/include")
     find_path(AVUTIL_INCLUDE_DIRS   NAMES libavutil/avutil.h    HINTS "${FFMPEG_BASE_DIR}/include")
@@ -38,30 +34,42 @@ else()
     set(FFMPEG_LIBS PkgConfig::AVFORMAT PkgConfig::AVCODEC PkgConfig::AVUTIL PkgConfig::SWSCALE)
 endif()
 
-# --- Executable ---
-add_executable(${PROJECT_NAME}
-    src/main.cpp
+add_library(core_lib 
     src/video/stream.cpp
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE 
-    ${CMAKE_SOURCE_DIR}/include 
-    ${FFMPEG_INCLUDES}
-)
+target_include_directories(core_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+target_link_libraries(core_lib PUBLIC 
     Eigen3::Eigen 
     ${FFMPEG_LIBS}
 )
 
+target_include_directories(core_lib PRIVATE ${FFMPEG_INCLUDES})
+
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE core_lib)
+
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG        v1.14.0
+)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+add_subdirectory(tests)
+
 if(WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    add_custom_command(TARGET core_lib POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${FFMPEG_BASE_DIR}/bin"
-        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
     )
 endif()
 
 if(ENABLE_CLANG_TIDY)
+  target_enable_clang_tidy(core_lib)
   target_enable_clang_tidy(${PROJECT_NAME})
 endif()

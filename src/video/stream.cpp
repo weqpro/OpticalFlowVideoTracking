@@ -114,12 +114,11 @@ Stream::Stream(const std::string& path) {
     packet_.reset(raw_packet);
 }
 
-/// converts current decoded frame to grayscale MatrixXd
 Eigen::MatrixXd Stream::frameToMatrix() {
     const int WIDTH  = codec_ctx_->width;
     const int HEIGHT = codec_ctx_->height;
 
-    if (!sws_ctx_) { // lazy sws init
+    if (!sws_ctx_) {
         SwsContext* raw_sws = sws_getContext(
             WIDTH, HEIGHT, static_cast<AVPixelFormat>(frame_->format),
             WIDTH, HEIGHT, AV_PIX_FMT_GRAY8,
@@ -167,20 +166,22 @@ std::optional<Eigen::MatrixXd> Stream::getFrame() {
                     avcodec_send_packet(codec_ctx_.get(), nullptr),
                     "avcodec_send_packet (flush)"
                 );
-            } else {
-                ffmpegCheck(read_ret, "av_read_frame");
 
-                if (packet_->stream_index != video_stream_index_) {
-                    av_packet_unref(packet_.get());
-                    continue;
-                }
-
-                int send_ret = avcodec_send_packet(
-                    codec_ctx_.get(), packet_.get()
-                );
-                av_packet_unref(packet_.get());
-                ffmpegCheck(send_ret, "avcodec_send_packet");
+                continue;
             }
+
+            ffmpegCheck(read_ret, "av_read_frame");
+
+            if (packet_->stream_index != video_stream_index_) {
+                av_packet_unref(packet_.get());
+                continue;
+            }
+
+            int send_ret = avcodec_send_packet(
+                codec_ctx_.get(), packet_.get()
+            );
+            av_packet_unref(packet_.get());
+            ffmpegCheck(send_ret, "avcodec_send_packet");
         }
 
         // Drain all frames the decoder is ready to emit.
