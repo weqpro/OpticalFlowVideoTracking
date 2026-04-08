@@ -43,4 +43,9 @@ double bilinearInterpolation(
     double x,
     double y);
 
+std::vector<Eigen::MatrixXd> buildGaussianPyramid(
+    const Eigen::MatrixXd& img, 
+    int levels
+);
+
 #endif // OPTICAL_FLOW_H
