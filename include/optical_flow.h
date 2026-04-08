@@ -19,12 +19,25 @@
 
 namespace vision {
 
-void computeDerivatives(
-    const Eigen::MatrixXd& img_prev, 
-    const Eigen::MatrixXd& img_next, 
-    Eigen::MatrixXd& grad_x, 
-    Eigen::MatrixXd& grad_y, 
-    Eigen::MatrixXd& grad_t
+struct CornerCandidate { 
+    int r, c; 
+    double val; 
+};
+
+void computeSpatialGradients(
+    const Eigen::MatrixXd& image, 
+    Eigen::MatrixXd& grad_ix, 
+    Eigen::MatrixXd& grad_iy
+);
+
+Eigen::MatrixXd computeMinEigenvalueMap(
+    const Eigen::MatrixXd& grad_ix, 
+    const Eigen::MatrixXd& grad_iy
+);
+
+std::vector<CornerCandidate> collectLocalMaxima(
+    const Eigen::MatrixXd& eig_min, 
+    double threshold
 );
 
 std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
@@ -38,7 +51,7 @@ struct TrackedFeature {
     Eigen::Vector2d previous_pos{Eigen::Vector2d::Zero()}; 
     Eigen::Vector2d current_pos{Eigen::Vector2d::Zero()}; 
     bool is_lost{false}; 
-    
+
     TrackedFeature(Eigen::Vector2d previous, Eigen::Vector2d current, bool lost = false)
     : previous_pos(std::move(previous)), current_pos(std::move(current)), is_lost(lost) {}
 };
@@ -52,8 +65,8 @@ void calcOpticalFlowLK(
 
 double bilinearInterpolation(
     const Eigen::MatrixXd& mat,
-    double x,
-    double y);
+    double x_coord,
+    double y_coord);
 
 std::vector<Eigen::MatrixXd> buildGaussianPyramid(
     const Eigen::MatrixXd& img, 

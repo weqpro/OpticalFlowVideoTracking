@@ -38,7 +38,7 @@ int main() {
     // Початкова позиція (x=5, y=5)
     features.emplace_back(Eigen::Vector2d(5.0, 5.0), Eigen::Vector2d(5.0, 5.0));
 
-    std::cout << "Initial position: " << features[0].previous_pos.transpose() << std::endl;
+    std::cout << "Initial position: " << features[0].previous_pos.transpose() << "\n";
 
     // 4. Розрахунок оптичного потоку за методом Лукаса-Канаде
     int neighborhood_size = 3;
@@ -47,10 +47,10 @@ int main() {
     // 5. Вивід результатів
     if (!features[0].is_lost) {
         std::cout << "Estimated flow vector: " 
-                  << (features[0].current_pos - features[0].previous_pos).transpose() << std::endl;
-        std::cout << "New position: " << features[0].current_pos.transpose() << std::endl;
+                  << (features[0].current_pos - features[0].previous_pos).transpose() << "\n";
+        std::cout << "New position: " << features[0].current_pos.transpose() << "\n";
     } else {
-        std::cout << "Feature lost!" << std::endl;
+        std::cout << "Feature lost!" << "\n";
     }
 
     return 0;
