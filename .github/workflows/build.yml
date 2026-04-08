@@ -1,12 +1,12 @@
 name: Multi-platform Build
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   push:
     branches: [main]
   pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -28,18 +28,38 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install eigen ffmpeg
 
-      - name: Install Dependencies (Windows - vcpkg)
+      - name: Cache dependencies (Windows - vcpkg)
         if: runner.os == 'Windows'
+        id: cache-vckpg
+        uses: actions/cache@v4
+        with:
+          path: C:/vcpkg/installed
+          key: ${{ runner.os }}-vcpkg-v2
+
+      - name: Install Dependencies (Windows - vcpkg)
+        if: runner.os == 'Windows' && steps.cache-vckpg.outputs.cache-hit != 'true'
         run: vcpkg install eigen3:x64-windows
 
-      - name: Install FFmpeg Dev (Windows)
+      - name: Cache dependencies (Windows - FFmpeg)
+        id: cache-ffmpeg
         if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: C:/ffmpeg
+          key: ${{ runner.os }}-FFmpeg-v1
+
+      - name: Install FFmpeg Dev (Windows)
+        if: runner.os == 'Windows' && steps.cache-ffmpeg.outputs.cache-hit != 'true'
         shell: bash
         run: |
           curl -L -o ffmpeg.zip https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip
           unzip -q ffmpeg.zip -d C:/ffmpeg_temp
           mv C:/ffmpeg_temp/ffmpeg-master-latest-win64-gpl-shared C:/ffmpeg
-          echo "FFMPEG_PATH=C:/ffmpeg" >> $GITHUB_ENV
+
+      - name: Set FFMPEG_PATH
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "FFMPEG_PATH=C:/ffmpeg" >> $GITHUB_ENV
 
       - name: Configure
         shell: bash
