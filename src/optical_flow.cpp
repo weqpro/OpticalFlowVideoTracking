@@ -262,6 +262,42 @@ static int solveLKIteration(
     return (delta_flow.norm() < 0.001) ? 0 : 1;
 }
 
+static void applyLocalNormalization(Eigen::MatrixXd& img) {
+    const int ROWS = static_cast<int>(img.rows());
+    const int COLS = static_cast<int>(img.cols());
+    const int WIN = 5; 
+    const int HALF_WIN = WIN / 2;
+    
+    Eigen::MatrixXd temp = img;
+    Eigen::MatrixXd mean_img = Eigen::MatrixXd::Zero(ROWS, COLS);
+
+    // Horizontal pass
+    for (int r = 0; r < ROWS; ++r) {
+        double row_sum = 0;
+        for (int i = -HALF_WIN; i <= HALF_WIN; ++i) {
+            row_sum += img(r, std::clamp(i, 0, COLS - 1));
+        }
+        for (int c = 0; c < COLS; ++c) {
+            temp(r, c) = row_sum / WIN;
+            row_sum += img(r, std::clamp(c + HALF_WIN + 1, 0, COLS - 1)) - img(r, std::clamp(c - HALF_WIN, 0, COLS - 1));
+        }
+    }
+
+    // Vertical pass
+    for (int c = 0; c < COLS; ++c) {
+        double col_sum = 0;
+        for (int i = -HALF_WIN; i <= HALF_WIN; ++i) {
+            col_sum += temp(std::clamp(i, 0, ROWS - 1), c);
+        }
+        for (int r = 0; r < ROWS; ++r) {
+            mean_img(r, c) = col_sum / WIN;
+            col_sum += temp(std::clamp(r + HALF_WIN + 1, 0, ROWS - 1), c) - temp(std::clamp(r - HALF_WIN, 0, ROWS - 1));
+        }
+    }
+    
+    img -= mean_img;
+}
+
 void calcOpticalFlowLK(
     const Eigen::MatrixXd& img_prev,
     const Eigen::MatrixXd& img_next,
@@ -270,8 +306,16 @@ void calcOpticalFlowLK(
     const int num_levels
 ) {
     const int MAX_ITERATIONS = 10;
-    const std::vector<Eigen::MatrixXd> PYR_PREV = buildGaussianPyramid(img_prev, num_levels);
-    const std::vector<Eigen::MatrixXd> PYR_NEXT = buildGaussianPyramid(img_next, num_levels);
+    
+    // Create copies to normalize without modifying original input
+    Eigen::MatrixXd norm_prev = img_prev;
+    Eigen::MatrixXd norm_next = img_next;
+    
+    applyLocalNormalization(norm_prev);
+    applyLocalNormalization(norm_next);
+
+    const std::vector<Eigen::MatrixXd> PYR_PREV = buildGaussianPyramid(norm_prev, num_levels);
+    const std::vector<Eigen::MatrixXd> PYR_NEXT = buildGaussianPyramid(norm_next, num_levels);
     const int ACTUAL_LEVELS = static_cast<int>(PYR_PREV.size());
 
     for (auto& feat : features) {
