@@ -38,6 +38,8 @@ add_library(core_lib
     src/video/stream.cpp
     src/optical_flow.cpp
     src/deriv.cpp
+    src/image_utils.cpp
+    src/feature_detector.cpp
 )
 
 target_include_directories(core_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
