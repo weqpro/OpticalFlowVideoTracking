@@ -211,7 +211,8 @@ static int solveLKIteration(
     const int NUM_ELEMENTS = neighborhood_size * neighborhood_size;
     Eigen::MatrixXd design_matrix(NUM_ELEMENTS, 2);
     Eigen::VectorXd observation_vector(NUM_ELEMENTS);
-
+    
+    // Pass 1: Collect gradients and initial temporal difference
     for(int row_offset = -HALF_WIN; row_offset <= HALF_WIN; ++row_offset) {
         for(int col_offset = -HALF_WIN; col_offset <= HALF_WIN; ++col_offset) {
             const int IDX_VAL = (row_offset + HALF_WIN) * neighborhood_size + (col_offset + HALF_WIN);
@@ -234,16 +235,31 @@ static int solveLKIteration(
         }
     }
 
-    const Eigen::Matrix2d HESSIAN_MAT = design_matrix.transpose() * design_matrix;
-    if (std::abs(HESSIAN_MAT.determinant()) < 1e-9) {
-        return -1;
+    Eigen::Vector2d delta_flow(0.0, 0.0);
+    const int IRLS_ITERATIONS = 3;
+    const double HUBER_K = 0.1;
+
+    for (int irls_idx = 0; irls_idx < IRLS_ITERATIONS; ++irls_idx) {
+        Eigen::VectorXd weights(NUM_ELEMENTS);
+        for (int i = 0; i < NUM_ELEMENTS; ++i) {
+            const double RESIDUAL = std::abs(design_matrix(i, 0) * delta_flow.x() + design_matrix(i, 1) * delta_flow.y() - observation_vector(i));
+            weights(i) = (RESIDUAL <= HUBER_K) ? 1.0 : HUBER_K / RESIDUAL;
+        }
+
+        const Eigen::DiagonalMatrix<double, Eigen::Dynamic> WEIGHT_MAT(weights);
+        const Eigen::Matrix2d HESSIAN = design_matrix.transpose() * WEIGHT_MAT * design_matrix;
+        
+        if (std::abs(HESSIAN.determinant()) < 1e-9) {
+            return -1;
+        }
+
+        delta_flow = HESSIAN.ldlt().solve(design_matrix.transpose() * WEIGHT_MAT * observation_vector);
     }
 
-    const Eigen::Vector2d DELTA_VEC = HESSIAN_MAT.ldlt().solve(design_matrix.transpose() * observation_vector);
-    flow_dx += DELTA_VEC.x();
-    flow_dy += DELTA_VEC.y();
+    flow_dx += delta_flow.x();
+    flow_dy += delta_flow.y();
     
-    return (DELTA_VEC.norm() < 0.001) ? 0 : 1;
+    return (delta_flow.norm() < 0.001) ? 0 : 1;
 }
 
 void calcOpticalFlowLK(
