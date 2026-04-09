@@ -18,33 +18,36 @@
 
 namespace vision {
 
+static bool isOutOfBounds(const Eigen::Vector2d& pos, const Eigen::MatrixXd& img) {
+    return (pos.x() < 1.0 || pos.y() < 1.0 || pos.x() >= static_cast<double>(img.cols()) - 1.0 || pos.y() >= static_cast<double>(img.rows()) - 1.0);
+}
+
 static void fillLKDesignMatrix(
     const Eigen::MatrixXd& img_prev, const Eigen::MatrixXd& img_next,
-    const double CENTER_X, const double CENTER_Y,
-    const double FLOW_DX, const double FLOW_DY,
-    const int HALF_WIN, const int NEIGHBORHOOD_SIZE,
+    const double center_x, const double center_y,
+    const double flow_dx, const double flow_dy,
+    const int half_win, const int neighborhood_size,
     Eigen::MatrixXd& design_matrix, Eigen::VectorXd& observation_vector, bool& out_of_bounds
 ) {
-    for(int row_offset = -HALF_WIN; row_offset <= HALF_WIN; ++row_offset) {
-        for(int col_offset = -HALF_WIN; col_offset <= HALF_WIN; ++col_offset) {
-            const int IDX_VAL = (row_offset + HALF_WIN) * NEIGHBORHOOD_SIZE + (col_offset + HALF_WIN);
-            const Eigen::Vector2d P_POS(CENTER_X + static_cast<double>(col_offset), CENTER_Y + static_cast<double>(row_offset));
-            const Eigen::Vector2d N_POS(P_POS.x() + FLOW_DX, P_POS.y() + FLOW_DY);
+    for(int row_offset = -half_win; row_offset <= half_win; ++row_offset) {
+        for(int col_offset = -half_win; col_offset <= half_win; ++col_offset) {
+            const int idx_val = (row_offset + half_win) * neighborhood_size + (col_offset + half_win);
+            const Eigen::Vector2d p_pos(center_x + static_cast<double>(col_offset), center_y + static_cast<double>(row_offset));
+            const Eigen::Vector2d n_pos(p_pos.x() + flow_dx, p_pos.y() + flow_dy);
 
-            if (P_POS.x() < 1.0 || P_POS.y() < 1.0 || P_POS.x() >= static_cast<double>(img_prev.cols()) - 1.0 || P_POS.y() >= static_cast<double>(img_prev.rows()) - 1.0 ||
-                N_POS.x() < 1.0 || N_POS.y() < 1.0 || N_POS.x() >= static_cast<double>(img_next.cols()) - 1.0 || N_POS.y() >= static_cast<double>(img_next.rows()) - 1.0) {
+            if (isOutOfBounds(p_pos, img_prev) || isOutOfBounds(n_pos, img_next)) {
                 out_of_bounds = true;
                 return;
             }
 
-            double current_gx = 0.0;
-            double current_gy = 0.0;
-            double current_gt = 0.0;
-            computePixelGradients(img_prev, img_next, P_POS, N_POS, current_gx, current_gy, current_gt);
+            double gx = 0.0;
+            double gy = 0.0;
+            double gt = 0.0;
+            computePixelGradients(img_prev, img_next, p_pos, n_pos, gx, gy, gt);
 
-            design_matrix(IDX_VAL, 0) = current_gx;
-            design_matrix(IDX_VAL, 1) = current_gy;
-            observation_vector(IDX_VAL) = -current_gt;
+            design_matrix(idx_val, 0) = gx;
+            design_matrix(idx_val, 1) = gy;
+            observation_vector(idx_val) = -gt;
         }
     }
 }
@@ -52,42 +55,42 @@ static void fillLKDesignMatrix(
 static int solveLKIteration(
     const Eigen::MatrixXd& img_prev,
     const Eigen::MatrixXd& img_next,
-    const double CENTER_X, 
-    const double CENTER_Y,
+    const double center_x, 
+    const double center_y,
     double& flow_dx,
     double& flow_dy,
-    const int NEIGHBORHOOD_SIZE
+    const int neighborhood_size
 ) {
-    const int HALF_WIN = NEIGHBORHOOD_SIZE / 2;
-    const int NUM_ELEMENTS = NEIGHBORHOOD_SIZE * NEIGHBORHOOD_SIZE;
-    Eigen::MatrixXd design_matrix(NUM_ELEMENTS, 2);
-    Eigen::VectorXd observation_vector(NUM_ELEMENTS);
+    const int half_win = neighborhood_size / 2;
+    const int num_elements = neighborhood_size * neighborhood_size;
+    Eigen::MatrixXd design_matrix(num_elements, 2);
+    Eigen::VectorXd observation_vector(num_elements);
     
     bool out_of_bounds = false;
-    fillLKDesignMatrix(img_prev, img_next, CENTER_X, CENTER_Y, flow_dx, flow_dy, HALF_WIN, NEIGHBORHOOD_SIZE, design_matrix, observation_vector, out_of_bounds);
+    fillLKDesignMatrix(img_prev, img_next, center_x, center_y, flow_dx, flow_dy, half_win, neighborhood_size, design_matrix, observation_vector, out_of_bounds);
     if (out_of_bounds) {
         return -1;
     }
 
     Eigen::Vector2d delta_flow(0.0, 0.0);
-    const int IRLS_ITERATIONS = 3;
-    const double HUBER_K = 0.1;
+    const int irls_iterations = 3;
+    const double huber_k = 0.1;
 
-    for (int irls_idx = 0; irls_idx < IRLS_ITERATIONS; ++irls_idx) {
-        Eigen::VectorXd weights(NUM_ELEMENTS);
-        for (int i_idx = 0; i_idx < NUM_ELEMENTS; ++i_idx) {
-            const double RESIDUAL = std::abs(design_matrix(i_idx, 0) * delta_flow.x() + design_matrix(i_idx, 1) * delta_flow.y() - observation_vector(i_idx));
-            weights(i_idx) = (RESIDUAL <= HUBER_K) ? 1.0 : HUBER_K / RESIDUAL;
+    for (int irls_idx = 0; irls_idx < irls_iterations; ++irls_idx) {
+        Eigen::VectorXd weights(num_elements);
+        for (int i_idx = 0; i_idx < num_elements; ++i_idx) {
+            const double residual = std::abs(design_matrix(i_idx, 0) * delta_flow.x() + design_matrix(i_idx, 1) * delta_flow.y() - observation_vector(i_idx));
+            weights(i_idx) = (residual <= huber_k) ? 1.0 : huber_k / residual;
         }
 
-        const Eigen::DiagonalMatrix<double, Eigen::Dynamic> WEIGHT_MAT(weights);
-        const Eigen::Matrix2d HESSIAN = design_matrix.transpose() * WEIGHT_MAT * design_matrix;
+        const Eigen::DiagonalMatrix<double, Eigen::Dynamic> weight_mat(weights);
+        const Eigen::Matrix2d hessian = design_matrix.transpose() * weight_mat * design_matrix;
         
-        if (std::abs(HESSIAN.determinant()) < 1e-9) {
+        if (std::abs(hessian.determinant()) < 1e-9) {
             return -1;
         }
 
-        delta_flow = HESSIAN.ldlt().solve(design_matrix.transpose() * WEIGHT_MAT * observation_vector);
+        delta_flow = hessian.ldlt().solve(design_matrix.transpose() * weight_mat * observation_vector);
     }
 
     flow_dx += delta_flow.x();
@@ -101,40 +104,40 @@ void computePixelGradients(
     const Eigen::Vector2d& prev_pos, const Eigen::Vector2d& next_pos,
     double& grad_x, double& grad_y, double& grad_t
 ) {
-    const double P_X = prev_pos.x();
-    const double P_Y = prev_pos.y();
-    const double N_X = next_pos.x();
-    const double N_Y = next_pos.y();
+    const double p_x = prev_pos.x();
+    const double p_y = prev_pos.y();
+    const double n_x = next_pos.x();
+    const double n_y = next_pos.y();
 
-    const double I1_X = (bilinearInterpolation(img_prev, P_X + 1.0, P_Y) - bilinearInterpolation(img_prev, P_X - 1.0, P_Y)) * 0.5;
-    const double I1_Y = (bilinearInterpolation(img_prev, P_X, P_Y + 1.0) - bilinearInterpolation(img_prev, P_X, P_Y - 1.0)) * 0.5;
-    const double I2_X = (bilinearInterpolation(img_next, N_X + 1.0, N_Y) - bilinearInterpolation(img_next, N_X - 1.0, N_Y)) * 0.5;
-    const double I2_Y = (bilinearInterpolation(img_next, N_X, N_Y + 1.0) - bilinearInterpolation(img_next, N_X, N_Y - 1.0)) * 0.5;
+    const double i1_x = (bilinearInterpolation(img_prev, p_x + 1.0, p_y) - bilinearInterpolation(img_prev, p_x - 1.0, p_y)) * 0.5;
+    const double i1_y = (bilinearInterpolation(img_prev, p_x, p_y + 1.0) - bilinearInterpolation(img_prev, p_x, p_y - 1.0)) * 0.5;
+    const double i2_x = (bilinearInterpolation(img_next, n_x + 1.0, n_y) - bilinearInterpolation(img_next, n_x - 1.0, n_y)) * 0.5;
+    const double i2_y = (bilinearInterpolation(img_next, n_x, n_y + 1.0) - bilinearInterpolation(img_next, n_x, n_y - 1.0)) * 0.5;
     
-    grad_x = (I1_X + I2_X) * 0.5;
-    grad_y = (I1_Y + I2_Y) * 0.5;
-    grad_t = bilinearInterpolation(img_next, N_X, N_Y) - bilinearInterpolation(img_prev, P_X, P_Y);
+    grad_x = (i1_x + i2_x) * 0.5;
+    grad_y = (i1_y + i2_y) * 0.5;
+    grad_t = bilinearInterpolation(img_next, n_x, n_y) - bilinearInterpolation(img_prev, p_x, p_y);
 }
 
 static void trackFeatureAtLevel(
-    const std::vector<Eigen::MatrixXd>& PYR_PREV, const std::vector<Eigen::MatrixXd>& PYR_NEXT,
+    const std::vector<Eigen::MatrixXd>& pyr_prev, const std::vector<Eigen::MatrixXd>& pyr_next,
     TrackedFeature& feat, double& flow_dx, double& flow_dy, 
-    const int NEIGHBORHOOD_SIZE, bool& tracking_failed
+    const int neighborhood_size, bool& tracking_failed
 ) {
-    const int MAX_ITERATIONS = 10;
-    const int ACTUAL_LEVELS = static_cast<int>(PYR_PREV.size());
+    const int max_iterations = 10;
+    const int actual_levels = static_cast<int>(pyr_prev.size());
 
-    for (int level_idx = ACTUAL_LEVELS - 1; level_idx >= 0; --level_idx) {
-        const double SCALE = std::pow(2.0, level_idx);
-        const double POS_X = feat.previous_pos.x() / SCALE;
-        const double POS_Y = feat.previous_pos.y() / SCALE;
+    for (int level_idx = actual_levels - 1; level_idx >= 0; --level_idx) {
+        const double scale = std::pow(2.0, level_idx);
+        const double pos_x = feat.previous_pos.x() / scale;
+        const double pos_y = feat.previous_pos.y() / scale;
 
-        for (int iter_idx = 0; iter_idx < MAX_ITERATIONS; ++iter_idx) {
-            const int RES_STATUS = solveLKIteration(PYR_PREV[level_idx], PYR_NEXT[level_idx], POS_X, POS_Y, flow_dx, flow_dy, NEIGHBORHOOD_SIZE);
-            if (RES_STATUS == 0) {
+        for (int iter_idx = 0; iter_idx < max_iterations; ++iter_idx) {
+            const int res_status = solveLKIteration(pyr_prev[level_idx], pyr_next[level_idx], pos_x, pos_y, flow_dx, flow_dy, neighborhood_size);
+            if (res_status == 0) {
                 break; 
             }
-            if (RES_STATUS == -1) {
+            if (res_status == -1) {
                 tracking_failed = true;
                 break; 
             }
@@ -155,8 +158,8 @@ void calcOpticalFlowLK(
     const Eigen::MatrixXd& img_prev,
     const Eigen::MatrixXd& img_next,
     std::vector<TrackedFeature>& features,
-    const int NEIGHBORHOOD_SIZE,
-    const int NUM_LEVELS
+    const int neighborhood_size,
+    const int num_levels
 ) {
     Eigen::MatrixXd norm_prev = img_prev;
     Eigen::MatrixXd norm_next = img_next;
@@ -164,8 +167,8 @@ void calcOpticalFlowLK(
     applyLocalNormalization(norm_prev);
     applyLocalNormalization(norm_next);
 
-    const std::vector<Eigen::MatrixXd> PYR_PREV = buildGaussianPyramid(norm_prev, NUM_LEVELS);
-    const std::vector<Eigen::MatrixXd> PYR_NEXT = buildGaussianPyramid(norm_next, NUM_LEVELS);
+    const std::vector<Eigen::MatrixXd> pyr_prev = buildGaussianPyramid(norm_prev, num_levels);
+    const std::vector<Eigen::MatrixXd> pyr_next = buildGaussianPyramid(norm_next, num_levels);
 
     for (auto& feat : features) {
         if (feat.is_lost) {
@@ -176,17 +179,17 @@ void calcOpticalFlowLK(
         double flow_dy = 0.0;
         bool tracking_failed = false;
 
-        trackFeatureAtLevel(PYR_PREV, PYR_NEXT, feat, flow_dx, flow_dy, NEIGHBORHOOD_SIZE, tracking_failed);
+        trackFeatureAtLevel(pyr_prev, pyr_next, feat, flow_dx, flow_dy, neighborhood_size, tracking_failed);
 
-        const double FINAL_X = feat.previous_pos.x() + flow_dx;
-        const double FINAL_Y = feat.previous_pos.y() + flow_dy;
+        const double final_x = feat.previous_pos.x() + flow_dx;
+        const double final_y = feat.previous_pos.y() + flow_dy;
         
-        if (FINAL_X < 0.0 || FINAL_Y < 0.0 || FINAL_X >= static_cast<double>(img_prev.cols()) - 1.0 || FINAL_Y >= static_cast<double>(img_prev.rows()) - 1.0) {
+        if (final_x < 0.0 || final_y < 0.0 || final_x >= static_cast<double>(img_prev.cols()) - 1.0 || final_y >= static_cast<double>(img_prev.rows()) - 1.0) {
             tracking_failed = true;
         }
 
         if (!tracking_failed) {
-            feat.current_pos = Eigen::Vector2d(FINAL_X, FINAL_Y);
+            feat.current_pos = Eigen::Vector2d(final_x, final_y);
         } else {
             feat.is_lost = true;
         }

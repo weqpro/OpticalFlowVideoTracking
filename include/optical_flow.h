@@ -27,8 +27,8 @@ void calcOpticalFlowLK(
     const Eigen::MatrixXd& img_prev,
     const Eigen::MatrixXd& img_next,
     std::vector<TrackedFeature>& features,
-    int NEIGHBORHOOD_SIZE = 3,
-    int NUM_LEVELS = 1
+    int neighborhood_size = 3,
+    int num_levels = 1
 );
 
 void computePixelGradients(

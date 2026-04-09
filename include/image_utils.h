@@ -20,9 +20,9 @@
 
 namespace vision {
 
-double bilinearInterpolation(const Eigen::MatrixXd& mat, double X_COORD, double Y_COORD);
+double bilinearInterpolation(const Eigen::MatrixXd& mat, double x_coord, double y_coord);
 
-std::vector<Eigen::MatrixXd> buildGaussianPyramid(const Eigen::MatrixXd& img, int LEVELS);
+std::vector<Eigen::MatrixXd> buildGaussianPyramid(const Eigen::MatrixXd& img, int levels);
 
 void applyLocalNormalization(Eigen::MatrixXd& img);
 

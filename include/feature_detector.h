@@ -34,14 +34,14 @@ Eigen::MatrixXd computeMinEigenvalueMap(
 
 std::vector<CornerCandidate> collectLocalMaxima(
     const Eigen::MatrixXd& eig_min, 
-    double THRESHOLD
+    double threshold
 );
 
 std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
     const Eigen::MatrixXd& image,
-    int MAX_CORNERS = 100,
-    double QUALITY_LEVEL = 0.01,
-    double MIN_DISTANCE = 10.0
+    int max_corners = 100,
+    double quality_level = 0.01,
+    double min_distance = 10.0
 );
 
 } // namespace vision
