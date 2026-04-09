@@ -250,34 +250,54 @@ void calcOpticalFlowLK(
     const Eigen::MatrixXd& img_prev,
     const Eigen::MatrixXd& img_next,
     std::vector<TrackedFeature>& features,
-    const int neighborhood_size
+    const int neighborhood_size,
+    const int num_levels
 ) {
     const int MAX_ITERATIONS = 10;
+    const std::vector<Eigen::MatrixXd> PYR_PREV = buildGaussianPyramid(img_prev, num_levels);
+    const std::vector<Eigen::MatrixXd> PYR_NEXT = buildGaussianPyramid(img_next, num_levels);
+    const int ACTUAL_LEVELS = static_cast<int>(PYR_PREV.size());
 
     for (auto& feat : features) {
         if (feat.is_lost) {
             continue;
         }
 
-        const double POS_X = feat.previous_pos.x();
-        const double POS_Y = feat.previous_pos.y();
         double flow_dx = 0.0;
         double flow_dy = 0.0;
-
         bool tracking_failed = false;
-        for (int iter = 0; iter < MAX_ITERATIONS; ++iter) {
-            const int RES_STATUS = solveLKIteration(img_prev, img_next, POS_X, POS_Y, flow_dx, flow_dy, neighborhood_size);
-            if (RES_STATUS == 0) {
-                break; 
+
+        for (int level_idx = ACTUAL_LEVELS - 1; level_idx >= 0; --level_idx) {
+            const double SCALE = std::pow(2.0, level_idx);
+            const double POS_X = feat.previous_pos.x() / SCALE;
+            const double POS_Y = feat.previous_pos.y() / SCALE;
+
+            // Solve LK at current level
+            for (int iter = 0; iter < MAX_ITERATIONS; ++iter) {
+                const int RES_STATUS = solveLKIteration(PYR_PREV[level_idx], PYR_NEXT[level_idx], POS_X, POS_Y, flow_dx, flow_dy, neighborhood_size);
+                if (RES_STATUS == 0) {
+                    break; 
+                }
+                if (RES_STATUS == -1) {
+                    tracking_failed = true;
+                    break; 
+                }
             }
-            if (RES_STATUS == -1) {
-                tracking_failed = true;
-                break; 
+
+            if (tracking_failed) {
+                break;
+            }
+
+            // Propagate to finer level
+            if (level_idx > 0) {
+                flow_dx *= 2.0;
+                flow_dy *= 2.0;
             }
         }
 
-        const double FINAL_X = POS_X + flow_dx;
-        const double FINAL_Y = POS_Y + flow_dy;
+        const double FINAL_X = feat.previous_pos.x() + flow_dx;
+        const double FINAL_Y = feat.previous_pos.y() + flow_dy;
+        
         if (FINAL_X < 0.0 || FINAL_Y < 0.0 || FINAL_X >= static_cast<double>(img_prev.cols()) - 1.0 || FINAL_Y >= static_cast<double>(img_prev.rows()) - 1.0) {
             tracking_failed = true;
         }
