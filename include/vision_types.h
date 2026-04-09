@@ -12,31 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef OPTICAL_FLOW_H
-#define OPTICAL_FLOW_H
+#ifndef VISION_TYPES_H
+#define VISION_TYPES_H
 
-#include <Eigen/Dense> 
-#include <vector>
-#include "vision_types.h"
-#include "image_utils.h"
-#include "feature_detector.h"
+#include <Eigen/Dense>
 
 namespace vision {
 
-void calcOpticalFlowLK(
-    const Eigen::MatrixXd& img_prev,
-    const Eigen::MatrixXd& img_next,
-    std::vector<TrackedFeature>& features,
-    int NEIGHBORHOOD_SIZE = 3,
-    int NUM_LEVELS = 1
-);
+struct CornerCandidate { 
+    int row, col; 
+    double val; 
+};
 
-void computePixelGradients(
-    const Eigen::MatrixXd& img_prev, const Eigen::MatrixXd& img_next,
-    const Eigen::Vector2d& prev_pos, const Eigen::Vector2d& next_pos,
-    double& grad_x, double& grad_y, double& grad_t
-);
+struct TrackedFeature {
+    Eigen::Vector2d previous_pos{Eigen::Vector2d::Zero()}; 
+    Eigen::Vector2d current_pos{Eigen::Vector2d::Zero()}; 
+    bool is_lost{false}; 
+
+    TrackedFeature(Eigen::Vector2d previous, Eigen::Vector2d current, bool lost = false)
+    : previous_pos(std::move(previous)), current_pos(std::move(current)), is_lost(lost) {}
+};
 
 } // namespace vision
 
-#endif // OPTICAL_FLOW_H
+#endif // VISION_TYPES_H

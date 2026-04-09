@@ -12,31 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef OPTICAL_FLOW_H
-#define OPTICAL_FLOW_H
+#ifndef FEATURE_DETECTOR_H
+#define FEATURE_DETECTOR_H
 
-#include <Eigen/Dense> 
+#include <Eigen/Dense>
 #include <vector>
 #include "vision_types.h"
-#include "image_utils.h"
-#include "feature_detector.h"
 
 namespace vision {
 
-void calcOpticalFlowLK(
-    const Eigen::MatrixXd& img_prev,
-    const Eigen::MatrixXd& img_next,
-    std::vector<TrackedFeature>& features,
-    int NEIGHBORHOOD_SIZE = 3,
-    int NUM_LEVELS = 1
+void computeSpatialGradients(
+    const Eigen::MatrixXd& image, 
+    Eigen::MatrixXd& grad_ix, 
+    Eigen::MatrixXd& grad_iy
 );
 
-void computePixelGradients(
-    const Eigen::MatrixXd& img_prev, const Eigen::MatrixXd& img_next,
-    const Eigen::Vector2d& prev_pos, const Eigen::Vector2d& next_pos,
-    double& grad_x, double& grad_y, double& grad_t
+Eigen::MatrixXd computeMinEigenvalueMap(
+    const Eigen::MatrixXd& grad_ix, 
+    const Eigen::MatrixXd& grad_iy
+);
+
+std::vector<CornerCandidate> collectLocalMaxima(
+    const Eigen::MatrixXd& eig_min, 
+    double THRESHOLD
+);
+
+std::vector<Eigen::Vector2d> findGoodFeaturesToTrack(
+    const Eigen::MatrixXd& image,
+    int MAX_CORNERS = 100,
+    double QUALITY_LEVEL = 0.01,
+    double MIN_DISTANCE = 10.0
 );
 
 } // namespace vision
 
-#endif // OPTICAL_FLOW_H
+#endif // FEATURE_DETECTOR_H
