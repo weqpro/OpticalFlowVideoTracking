@@ -66,7 +66,8 @@ void calcOpticalFlowLK(
     const Eigen::MatrixXd& img_prev,
     const Eigen::MatrixXd& img_next,
     std::vector<TrackedFeature>& features,
-    int neighborhood_size = 3
+    int neighborhood_size = 3,
+    int num_levels = 1
 );
 
 double bilinearInterpolation(

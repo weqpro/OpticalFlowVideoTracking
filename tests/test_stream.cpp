@@ -129,3 +129,28 @@ TEST(OpticalFlowStreamTest, SubpixelMultiFrameTracking_MovingObject_TracksAccura
         img_prev = img_next;
     }
 }
+
+// 6. ТЕСТ НА ВЕЛИКЕ ЗМІЩЕННЯ (Multi-level)
+TEST(OpticalFlowTest, CalcOpticalFlowLK_LargeDisplacement_TracksWithPyramid) {
+    int rows = 100; 
+    int cols = 100; 
+    // Зміщення на 8 пікселів - забагато для стандартного вікна 7x7 без піраміди
+    Eigen::MatrixXd img_prev = createTestImage(rows, cols, 40.0, 40.0, 15);
+    Eigen::MatrixXd img_next = createTestImage(rows, cols, 48.0, 48.0, 15);
+
+    vision::TrackedFeature feat(Eigen::Vector2d(40.0, 40.0), Eigen::Vector2d(40.0, 40.0), false);
+    std::vector<vision::TrackedFeature> features = {feat};
+
+    // Спочатку спробуємо без пірамід (має бути неточним для великого зсуву)
+    vision::calcOpticalFlowLK(img_prev, img_next, features, 7, 1);
+    double dist_single = (features[0].current_pos - Eigen::Vector2d(48.0, 48.0)).norm();
+
+    // Тепер з 3 рівнями піраміди
+    features[0].current_pos = features[0].previous_pos;
+    features[0].is_lost = false;
+    vision::calcOpticalFlowLK(img_prev, img_next, features, 7, 3);
+    double dist_multi = (features[0].current_pos - Eigen::Vector2d(48.0, 48.0)).norm();
+
+    EXPECT_LT(dist_multi, 0.5) << "Багатомасштабний підхід має знайти точку з високою точністю";
+    EXPECT_GT(dist_single, dist_multi) << "Багатомасштабний підхід має бути кращим за одномасштабний для великих зсувів";
+}
