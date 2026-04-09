@@ -292,21 +292,56 @@ void calcOpticalFlowLK(
 
 std::vector<Eigen::MatrixXd> buildGaussianPyramid(const Eigen::MatrixXd& img, const int levels) {
     std::vector<Eigen::MatrixXd> pyramid;
+    pyramid.reserve(levels);
     pyramid.push_back(img);
 
-    for (int i = 1; i < levels; ++i) {
-        const auto& prev_img = pyramid.back();
-        const int NEW_ROWS = static_cast<int>(prev_img.rows() / 2);
-        const int NEW_COLS = static_cast<int>(prev_img.cols() / 2);
-        
+    const Eigen::RowVectorXd KERNEL_1D = (Eigen::RowVectorXd(5) << 1.0, 4.0, 6.0, 4.0, 1.0).finished() / 16.0;
+
+    for (int level_idx = 1; level_idx < levels; ++level_idx) {
+        const Eigen::MatrixXd& PREV_LVL = pyramid.back();
+        const int ROWS_COUNT = static_cast<int>(PREV_LVL.rows());
+        const int COLS_COUNT = static_cast<int>(PREV_LVL.cols());
+
+        if (ROWS_COUNT < 5 || COLS_COUNT < 5) {
+            break;
+        }
+
+        // Gaussian Smoothing (Separable Convolution)
+        Eigen::MatrixXd temp_blurred(ROWS_COUNT, COLS_COUNT);
+        for (int r_idx = 0; r_idx < ROWS_COUNT; ++r_idx) {
+            for (int c_idx = 0; c_idx < COLS_COUNT; ++c_idx) {
+                double blur_sum = 0.0;
+                for (int k_idx = -2; k_idx <= 2; ++k_idx) {
+                    const int SAMPLED_COL = std::clamp(c_idx + k_idx, 0, COLS_COUNT - 1);
+                    blur_sum += PREV_LVL(r_idx, SAMPLED_COL) * KERNEL_1D(k_idx + 2);
+                }
+                temp_blurred(r_idx, c_idx) = blur_sum;
+            }
+        }
+
+        Eigen::MatrixXd fully_blurred(ROWS_COUNT, COLS_COUNT);
+        for (int c_idx = 0; c_idx < COLS_COUNT; ++c_idx) {
+            for (int r_idx = 0; r_idx < ROWS_COUNT; ++r_idx) {
+                double blur_sum = 0.0;
+                for (int k_idx = -2; k_idx <= 2; ++k_idx) {
+                    const int SAMPLED_ROW = std::clamp(r_idx + k_idx, 0, ROWS_COUNT - 1);
+                    blur_sum += temp_blurred(SAMPLED_ROW, c_idx) * KERNEL_1D(k_idx + 2);
+                }
+                fully_blurred(r_idx, c_idx) = blur_sum;
+            }
+        }
+
+        // Downsampling
+        const int NEW_ROWS = ROWS_COUNT / 2;
+        const int NEW_COLS = COLS_COUNT / 2;
         if (NEW_ROWS < 3 || NEW_COLS < 3) {
             break;
         }
 
         Eigen::MatrixXd downsampled(NEW_ROWS, NEW_COLS);
-        for (int row_idx = 0; row_idx < NEW_ROWS; ++row_idx) {
-            for (int col_idx = 0; col_idx < NEW_COLS; ++col_idx) {
-                downsampled(row_idx, col_idx) = prev_img.block<2, 2>(static_cast<Eigen::Index>(row_idx) * 2, static_cast<Eigen::Index>(col_idx) * 2).mean();
+        for (int r_idx = 0; r_idx < NEW_ROWS; ++r_idx) {
+            for (int c_idx = 0; c_idx < NEW_COLS; ++c_idx) {
+                downsampled(r_idx, c_idx) = fully_blurred(r_idx * 2, c_idx * 2);
             }
         }
         pyramid.push_back(downsampled);
