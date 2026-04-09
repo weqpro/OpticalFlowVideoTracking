@@ -175,3 +175,24 @@ TEST(OpticalFlowTest, CalcOpticalFlowLK_WithOutliers_TracksCorrectly) {
     EXPECT_NEAR(features[0].current_pos.x(), 21.0, 0.2) << "Має бути знайдено правильний зсув по X попри викид";
     EXPECT_NEAR(features[0].current_pos.y(), 20.0, 0.2) << "Зсув по Y має залишатися близьким до нуля";
 }
+
+// 8. ТЕСТ НА СТІЙКІСТЬ ДО ОСВІТЛЕННЯ (Lighting Invariance)
+TEST(OpticalFlowTest, CalcOpticalFlowLK_VariableLighting_TracksCorrectly) {
+    int rows = 100; 
+    int cols = 100; 
+    Eigen::MatrixXd img_prev = createTestImage(rows, cols, 40.0, 40.0, 15);
+    
+    // Другий кадр має зсув на 1 піксель та значно яскравіший (+0.5 фонового світла)
+    Eigen::MatrixXd img_next = createTestImage(rows, cols, 41.0, 40.0, 15);
+    img_next = img_next.array() + 0.5;
+
+    vision::TrackedFeature feat(Eigen::Vector2d(40.0, 40.0), Eigen::Vector2d(40.0, 40.0), false);
+    std::vector<vision::TrackedFeature> features = {feat};
+
+    // Завдяки нормалізації алгоритм має знайти зсув (1.0, 0.0) попри зміну яскравості
+    vision::calcOpticalFlowLK(img_prev, img_next, features, 7, 1);
+
+    ASSERT_FALSE(features[0].is_lost) << "Точка не повинна бути втрачена через зміну освітлення";
+    EXPECT_NEAR(features[0].current_pos.x(), 41.0, 0.2) << "Має бути знайдено правильний зсув по X попри яскравість";
+    EXPECT_NEAR(features[0].current_pos.y(), 40.0, 0.2) << "Зсув по Y має бути близьким до нуля";
+}
