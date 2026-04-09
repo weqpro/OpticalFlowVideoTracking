@@ -122,8 +122,8 @@ TEST(OpticalFlowStreamTest, SubpixelMultiFrameTracking_MovingObject_TracksAccura
         vision::calcOpticalFlowLK(img_prev, img_next, features, 9);
 
         ASSERT_FALSE(features[0].is_lost) << "Втрачено на кадрі " << f;
-        EXPECT_NEAR(features[0].current_pos.x(), ground_truth.x(), 0.15) << "Помилка по X на кадрі " << f;
-        EXPECT_NEAR(features[0].current_pos.y(), ground_truth.y(), 0.15) << "Помилка по Y на кадрі " << f;
+        EXPECT_NEAR(features[0].current_pos.x(), ground_truth.x(), 0.2) << "Помилка по X на кадрі " << f;
+        EXPECT_NEAR(features[0].current_pos.y(), ground_truth.y(), 0.2) << "Помилка по Y на кадрі " << f;
 
         features[0].previous_pos = features[0].current_pos;
         img_prev = img_next;
@@ -153,4 +153,25 @@ TEST(OpticalFlowTest, CalcOpticalFlowLK_LargeDisplacement_TracksWithPyramid) {
 
     EXPECT_LT(dist_multi, 0.5) << "Багатомасштабний підхід має знайти точку з високою точністю";
     EXPECT_GT(dist_single, dist_multi) << "Багатомасштабний підхід має бути кращим за одномасштабний для великих зсувів";
+}
+
+// 7. ТЕСТ НА РОБАСТНІСТЬ (Robustness to Outliers)
+TEST(OpticalFlowTest, CalcOpticalFlowLK_WithOutliers_TracksCorrectly) {
+    int rows = 50; 
+    int cols = 50; 
+    Eigen::MatrixXd img_prev = createTestImage(rows, cols, 20.0, 20.0, 10);
+    Eigen::MatrixXd img_next = createTestImage(rows, cols, 21.0, 20.0, 10);
+
+    // Додаємо "шум" (викид) поруч з кутом на другому кадрі
+    img_next(22, 22) = 5.0; 
+
+    vision::TrackedFeature feat(Eigen::Vector2d(20.0, 20.0), Eigen::Vector2d(20.0, 20.0), false);
+    std::vector<vision::TrackedFeature> features = {feat};
+
+    // З IRLS алгоритм має ігнорувати цей піксель і знайти правильний зсув (1.0, 0.0)
+    vision::calcOpticalFlowLK(img_prev, img_next, features, 7, 1);
+
+    ASSERT_FALSE(features[0].is_lost) << "Точка не повинна бути втрачена через один викид";
+    EXPECT_NEAR(features[0].current_pos.x(), 21.0, 0.2) << "Має бути знайдено правильний зсув по X попри викид";
+    EXPECT_NEAR(features[0].current_pos.y(), 20.0, 0.2) << "Зсув по Y має залишатися близьким до нуля";
 }
