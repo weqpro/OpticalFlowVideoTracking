@@ -34,7 +34,7 @@ else()
     set(FFMPEG_LIBS PkgConfig::AVFORMAT PkgConfig::AVCODEC PkgConfig::AVUTIL PkgConfig::SWSCALE)
 endif()
 
-add_library(core_lib 
+add_library(core_lib
     src/video/stream.cpp
 )
 

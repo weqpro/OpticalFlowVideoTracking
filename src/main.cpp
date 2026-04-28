@@ -15,7 +15,18 @@
 #include <cstdlib>
 #include <iostream>
 
+#include "video/stream.h"
+
 int main() {
-    std::cout << "To be implemented\n";
+    video::Stream stream {"../../tests/data/test.mp4"};
+    auto res = stream.getFrame();
+    size_t n_frames = 0;
+    while (res != std::nullopt) {
+        ++n_frames;
+        res = stream.getFrame();
+    }
+
+    std::cout << n_frames << "\n";
+
     return EXIT_SUCCESS;
 }
