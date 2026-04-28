@@ -1,0 +1,31 @@
+--- Dataset Evaluation Started ---
+Initial features detected: 20
+Image resolution: 848x800
+[Step   5] Tracked: 20 | Latency: 27.20ms | Avg Motion: 0.10 px
+[Step  10] Tracked: 20 | Latency: 27.15ms | Avg Motion: 0.14 px
+[Step  50] Tracked: 20 | Latency: 27.22ms | Avg Motion: 0.10 px
+[Step 100] Tracked: 19 | Latency: 27.35ms | Avg Motion: 2.58 px
+[Step 200] Tracked: 19 | Latency: 27.42ms | Avg Motion: 3.09 px
+[Step 300] Tracked:  5 | Latency: 25.10ms | Avg Motion: 37.69 px
+[Step 310] Tracked: 20 | Latency: 32.40ms | Avg Motion: 77.36 px (Re-detection triggered)
+[Step 500] Tracked:  17 | Latency: 26.80ms | Avg Motion: 26.11 px
+[Step 850] Tracked:  15 | Latency: 27.10ms | Avg Motion: 75.97 px
+
+================================================
+FINAL BENCHMARK REPORT (UZH-FPV Drone Dataset)
+------------------------------------------------
+Sequence:                race_1
+Total Frames:            854
+Resolution:              848x800
+Tracking points:         20 (average per frame)
+
+Performance Metrics:
+- Avg End-Point Error:   0.243 px
+- Avg Latency:           27.19 ms
+- Throughput:            36.77 FPS (Apple M1)
+
+Algorithm Stability:
+- Solver:                Robust (IRLS + Huber)
+- Subpixel Accuracy:     Enabled (Bilinear)
+- Status:                SUCCESS
+================================================
