@@ -1,7 +1,7 @@
 find_package(OpenCV REQUIRED)
 
 add_executable(optical_flow_tests 
-    test_stream.cpp
+    test_optical_flow.cpp
     ../src/optical_flow.cpp
 )
 
