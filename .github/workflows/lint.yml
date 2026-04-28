@@ -46,7 +46,8 @@ jobs:
             libavformat-dev \
             libavcodec-dev \
             libavutil-dev \
-            libswscale-dev
+            libswscale-dev \
+            libopencv-dev
 
       # cmake configure only — produces build/compile_commands.json.
       # ENABLE_CLANG_TIDY=OFF so we drive clang-tidy directly (cleaner output).

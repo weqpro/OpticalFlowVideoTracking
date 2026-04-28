@@ -1,4 +1,3 @@
-
 // Copyright 2026 Konovalenko Stanislav and Hombosh Oleh
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +21,14 @@ namespace vision {
 
 using MatrixXu = Eigen::Matrix<uint8_t, Eigen::Dynamic, Eigen::Dynamic>;
 
-void convolve1d(const Eigen::MatrixXd& in_matrix, Eigen::MatrixXd& out_matrix) {
+void computeDerivatives(
+    const Eigen::MatrixXd& img_prev, 
+    const Eigen::MatrixXd& img_next, 
+    Eigen::MatrixXd& grad_x, 
+    Eigen::MatrixXd& grad_y, 
+    Eigen::MatrixXd& grad_t
+);
 
-}
-
-}
+} // namespace vision
 
 #endif // !DERIV_H
