@@ -41,5 +41,7 @@
 *.dwo
 
 .cache/
+.claude/
 build/
 **/.DS_Store
+tests/data

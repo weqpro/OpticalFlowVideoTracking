@@ -17,6 +17,8 @@
 #include <Eigen/Dense>
 #include "optical_flow.h"
 
+#include "video/stream.h"
+
 int main() {
     // 1. Створення двох синтетичних кадрів (10x10)
     Eigen::MatrixXd frame1 = Eigen::MatrixXd::Zero(10, 10);
