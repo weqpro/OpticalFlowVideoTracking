@@ -2,7 +2,7 @@ find_package(OpenCV REQUIRED)
 
 add_executable(optical_flow_tests 
     video/test_stream.cpp
-    test_optical_flow.cpp
+    video/test_optical_flow.cpp
 )
 
 target_include_directories(optical_flow_tests PRIVATE ${OpenCV_INCLUDE_DIRS})
