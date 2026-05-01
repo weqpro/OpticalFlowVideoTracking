@@ -18,18 +18,36 @@ Copyright 2026 Konovalenko Stanislav and Hombosh Oleh
 - Eigen3: Library for linear algebra
 - FFmpeg: Must be installed and added to the system variable FFMPEG_PATH (e.g., C:\ffmpeg)
 
-## Compilation
 
-For Windows (using PowerShell or Command Prompt):
+###  Building
 
-```sh
-mkdir build
-cd build
-cmake .. -DENABLE_CLANG_TIDY=OFF
-cmake --build . --config Release
-```
+  Dependencies: CMake 3.16+, Eigen3, FFmpeg (libavformat, libavcodec, libavutil, libswscale), OpenCV
 
-Note: FFmpeg files (.dll) will be automatically copied to the executable directory after a successful build.
+  # Release build
+  ./compile.sh
+
+  # Debug build
+  ./compile.sh -d
+
+  # Build and run tests
+  ./compile.sh -t
+
+  Binaries are written to build/bin/.
+
+###  Running
+
+  Lucas-Kanade optical flow demo (synthetic frames):
+
+  ./build/bin/OpticalFlowVideoTracking
+
+  Flow visualizer (generates flow_input.mp4, processes it with feature tracking, writes result to flow_output.mp4):
+
+  ./build/bin/flow_visualizer
+
+  Run tests only (after building):
+
+  ctest --test-dir build --output-on-failure
+
 
 ## Installation
 
@@ -38,15 +56,3 @@ git clone https://github.com/weqpro/OpticalFlowVideoTracking
 cd OpticalFlowVideoTracking
 ```
 
-## Usage
-
-After successful compilation, the executable file will be located in the build/bin/Release folder (or just build/bin). To run the program, use the following command:
-
-```sh
-.\build\bin\Release\OpticalFlowVideoTracking.exe
-```
-
-Example output:
-
-1 Initial position: 5 5
-2 Estimated flow vector: 1 0
